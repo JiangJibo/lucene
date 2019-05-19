@@ -143,7 +143,11 @@ public class LiveIndexWriterConfig {
 
     // segement合并策略,默认阶梯式的 的合并策略
     mergePolicy = new TieredMergePolicy();
+
+    // 将内存中的segement刷新到磁盘的策略, 默认是根据内存使用量
     flushPolicy = new FlushByRamOrCountsPolicy();
+
+
     readerPooling = IndexWriterConfig.DEFAULT_READER_POOLING;
     indexerThreadPool = new DocumentsWriterPerThreadPool();
     perThreadHardLimitMB = IndexWriterConfig.DEFAULT_RAM_PER_THREAD_HARD_LIMIT_MB;

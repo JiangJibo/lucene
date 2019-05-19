@@ -10,6 +10,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.queryparser.classic.ParseException;
@@ -69,10 +70,15 @@ public class LuceneUsageExample {
 
     @Test
     public void testInsertDocument() throws IOException {
-        IndexWriter writer = new IndexWriter(new SimpleFSDirectory(Paths.get("E:\\lucene")),new IndexWriterConfig(new StandardAnalyzer()));
+        IndexWriter writer = new IndexWriter(new SimpleFSDirectory(Paths.get("E:\\lucene")), new IndexWriterConfig(new StandardAnalyzer()));
         Document doc = new Document();
-        doc.add(new Field("title", "java introduction", new FieldType()));
-        doc.add(new Field("content", "python works well", new FieldType()));
+
+        // field必须具备索引或者存储中的一个特性,如果两个都不要,那么这个属性就没用了
+        FieldType fieldType = new FieldType();
+        fieldType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
+
+        doc.add(new Field("title", "java introduction asda", fieldType));
+        doc.add(new Field("content", "python works well sdfasdf", fieldType));
         writer.addDocument(doc);
         //writer.optimize();
         writer.close();
