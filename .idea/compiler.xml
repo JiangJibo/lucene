@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="lucene-analyzers-common" />
+        <module name="lucene-analyzers-icu" />
+        <module name="lucene-analyzers-kuromoji" />
+        <module name="lucene-analyzers-morfologik" />
+        <module name="lucene-analyzers-opennlp" />
+        <module name="lucene-analyzers-phonetic" />
+        <module name="lucene-analyzers-smartcn" />
+        <module name="lucene-analyzers-stempel" />
+        <module name="lucene-analyzers-uima" />
+        <module name="lucene-backward-codecs" />
+        <module name="lucene-benchmark" />
+        <module name="lucene-classification" />
+        <module name="lucene-codecs-aggregator" />
+        <module name="lucene-core-aggregator" />
+        <module name="lucene-demo" />
+        <module name="lucene-expressions" />
+        <module name="lucene-facet" />
+        <module name="lucene-grouping" />
+        <module name="lucene-highlighter" />
+        <module name="lucene-join" />
+        <module name="lucene-memory" />
+        <module name="lucene-misc" />
+        <module name="lucene-queries" />
+        <module name="lucene-queryparser" />
+        <module name="lucene-replicator" />
+        <module name="lucene-sandbox" />
+        <module name="lucene-spatial" />
+        <module name="lucene-spatial-extras" />
+        <module name="lucene-spatial3d" />
+        <module name="lucene-suggest" />
+        <module name="lucene-test-framework" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="lucene-analysis-modules-aggregator" target="1.8" />
+      <module name="lucene-analyzers-common" target="1.8" />
+      <module name="lucene-analyzers-icu" target="1.8" />
+      <module name="lucene-analyzers-kuromoji" target="1.8" />
+      <module name="lucene-analyzers-morfologik" target="1.8" />
+      <module name="lucene-analyzers-opennlp" target="1.8" />
+      <module name="lucene-analyzers-phonetic" target="1.8" />
+      <module name="lucene-analyzers-smartcn" target="1.8" />
+      <module name="lucene-analyzers-stempel" target="1.8" />
+      <module name="lucene-analyzers-uima" target="1.8" />
+      <module name="lucene-backward-codecs" target="1.8" />
+      <module name="lucene-benchmark" target="1.8" />
+      <module name="lucene-classification" target="1.8" />
+      <module name="lucene-codecs-aggregator" target="1.8" />
+      <module name="lucene-core-aggregator" target="1.8" />
+      <module name="lucene-demo" target="1.8" />
+      <module name="lucene-expressions" target="1.8" />
+      <module name="lucene-facet" target="1.8" />
+      <module name="lucene-grouping" target="1.8" />
+      <module name="lucene-highlighter" target="1.8" />
+      <module name="lucene-join" target="1.8" />
+      <module name="lucene-memory" target="1.8" />
+      <module name="lucene-misc" target="1.8" />
+      <module name="lucene-parent" target="1.8" />
+      <module name="lucene-queries" target="1.8" />
+      <module name="lucene-queryparser" target="1.8" />
+      <module name="lucene-replicator" target="1.8" />
+      <module name="lucene-sandbox" target="1.8" />
+      <module name="lucene-spatial" target="1.8" />
+      <module name="lucene-spatial-extras" target="1.8" />
+      <module name="lucene-spatial3d" target="1.8" />
+      <module name="lucene-suggest" target="1.8" />
+      <module name="lucene-test-framework" target="1.8" />
+    </bytecodeTargetLevel>
+  </component>
+</project>
