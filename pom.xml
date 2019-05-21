@@ -930,7 +930,7 @@
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-compress</artifactId>
-                <version>1.14</version>
+                <version>1.18</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
@@ -1265,7 +1265,7 @@
             <dependency>
                 <groupId>org.eclipse.jetty</groupId>
                 <artifactId>jetty-server</artifactId>
-                <version>9.4.8.v20171121</version>
+                <version>9.4.17.v20190418</version>
                 <exclusions>
                     <exclusion>
                         <groupId>javax.servlet</groupId>
