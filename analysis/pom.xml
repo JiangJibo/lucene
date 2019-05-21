@@ -36,10 +36,6 @@
             <artifactId>lucene-analyzers-common</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.apache.lucene</groupId>
-            <artifactId>lucene-core</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.apache.uima</groupId>
             <artifactId>Tagger</artifactId>
         </dependency>

@@ -37,11 +37,6 @@
             <groupId>ua.net.nlp</groupId>
             <artifactId>morfologik-ukrainian-search</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.apache.lucene</groupId>
-            <artifactId>lucene-codecs</artifactId>
-            <scope>test</scope>
-        </dependency>
 
     </dependencies>
 
