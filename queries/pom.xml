@@ -20,17 +20,14 @@
         <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-test-framework</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.carrotsearch.randomizedtesting</groupId>
             <artifactId>randomizedtesting-runner</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-expressions</artifactId>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 

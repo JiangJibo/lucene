@@ -43,7 +43,13 @@ public final class FieldInfo {
     // True if any document indexed term vectors
     private boolean storeTermVector;
 
-    private boolean omitNorms; // omit norms associated with indexed fields
+    /**
+     * 是否忽略Field的加权基准值,加权值高的Field会更比较低的更加优先被搜索到
+     * omit norms associated with indexed fields
+     * Lucene会基于域的语汇单元来计算加权值（更短的域有较高的加权，这里隐含了如果越短，则优先级可能越高），
+     * 这些加权会被合并量化为一个单一的字节值（加权基准Norms），并且存储，在搜索的时候被加载到内存，还原为浮点数，然后用于计算评分。
+     */
+    private boolean omitNorms;
 
     private IndexOptions indexOptions = IndexOptions.NONE;
     private boolean storePayloads; // whether this field stores payloads together with term positions

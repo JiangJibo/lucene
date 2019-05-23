@@ -512,6 +512,7 @@ final class DocumentsWriter implements Closeable, Accountable {
             // This must happen after we've pulled the ThreadState because IW.close
             // waits for all ThreadStates to be released:
             ensureOpen();
+            // 确定perThread里有dwpt
             ensureInitialized(perThread);
             assert perThread.isInitialized();
             final DocumentsWriterPerThread dwpt = perThread.dwpt;

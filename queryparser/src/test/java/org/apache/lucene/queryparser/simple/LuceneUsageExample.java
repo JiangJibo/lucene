@@ -70,7 +70,7 @@ public class LuceneUsageExample {
 
     @Test
     public void testInsertDocument() throws IOException {
-        IndexWriter writer = new IndexWriter(new SimpleFSDirectory(Paths.get("E:\\lucene")), new IndexWriterConfig(new StandardAnalyzer()));
+        IndexWriter writer = new IndexWriter(new SimpleFSDirectory(Paths.get("D:\\lucene-temp")), new IndexWriterConfig(new StandardAnalyzer()));
         Document doc = new Document();
 
         // field必须具备索引或者存储中的一个特性,如果两个都不要,那么这个属性就没用了
