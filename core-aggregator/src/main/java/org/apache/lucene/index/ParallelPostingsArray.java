@@ -18,7 +18,14 @@ package org.apache.lucene.index;
 
 import org.apache.lucene.util.ArrayUtil;
 
+/**
+ * 并行提交数组
+ */
 class ParallelPostingsArray {
+
+  /**
+   * 3*4 = 12
+   */
   final static int BYTES_PER_POSTING = 3 * Integer.BYTES;
 
   final int size;

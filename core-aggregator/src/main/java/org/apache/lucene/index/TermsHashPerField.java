@@ -43,7 +43,18 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
     final ByteBlockPool bytePool;
     final ByteBlockPool termBytePool;
 
+    /**
+     * 每个Field的每个term要存储多少个stream(数据),比如freq是一个prox(位置信息,position)+offset是一个
+     * {@link TermVectorsConsumerPerField} 要存freq+offset, 所以为 2
+     * {@link FreqProxTermsWriterPerField} 的IndexOptions为 {@link IndexOptions#DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS}时是2,否则为1
+     */
     final int streamCount;
+
+    /**
+     * 默认值2* {@link #streamCount}
+     *
+     * @see {@link TermVectorsConsumerPerField#TermVectorsConsumerPerField(FieldInvertState, TermVectorsConsumer, FieldInfo)}
+     */
     final int numPostingInt;
 
     protected final FieldInfo fieldInfo;
@@ -54,8 +65,18 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
     private final Counter bytesUsed;
 
     /**
+     * 每个Field的每个term要存储多少个stream(数据),比如freq是一个prox+offset是一个
      * streamCount: how many streams this field stores per term.
      * E.g. doc(+freq) is 1 stream, prox+offset is a second.
+     *
+     * {@link TermVectorsConsumerPerField}
+     *
+     * @param streamCount  有值1 和 2
+     * @param fieldState
+     * @param termsHash
+     * @param nextPerField
+     * @param fieldInfo
+     * @see
      */
 
     public TermsHashPerField(int streamCount, FieldInvertState fieldState, TermsHash termsHash, TermsHashPerField nextPerField, FieldInfo fieldInfo) {
@@ -154,14 +175,14 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
         // We are first in the chain so we must "intern" the
         // term text into textStart address
         // Get the text & hash of this term.
-        // termID : 表示当前term是分词后第第几个term,从0开始
+        // termID :也就是此term在字典里的序号
         int termID = bytesHash.add(termAtt.getBytesRef());
         // 打印数据
         System.out.println("add term=" + termAtt.getBytesRef().utf8ToString() + " doc=" + docState.docID + " termID=" + termID);
-
-        if (termID >= 0) {// New posting
+        // New posting, 也就是新增
+        if (termID >= 0) {
             bytesHash.byteStart(termID);
-            // Init stream slices
+            // Init stream slices, 如果当前buffer在加上待提交的超过了最大长度,新生成一个buffer,指向下一个buffer
             if (numPostingInt + intPool.intUpto > IntBlockPool.INT_BLOCK_SIZE) {
                 intPool.nextBuffer();
             }
@@ -174,17 +195,22 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
             intUptoStart = intPool.intUpto;
             intPool.intUpto += streamCount;
 
+            // 提交数组里第几个term的在 IntBlockPool#buffers 里的总的数据起始位置
             postingsArray.intStarts[termID] = intUptoStart + intPool.intOffset;
 
             for (int i = 0; i < streamCount; i++) {
+                // 获取bytePool 里的buffer的offset
                 final int upto = bytePool.newSlice(ByteBlockPool.FIRST_LEVEL_SIZE);
+                // intPool的 intUpto+i 指向bytePool的buffers里的offset
                 intUptos[intUptoStart + i] = upto + bytePool.byteOffset;
             }
             postingsArray.byteStarts[termID] = intUptos[intUptoStart];
 
             newTerm(termID);
 
-        } else {
+        }
+        // 之前写入过这个term值
+        else {
             termID = (-termID) - 1;
             int intStart = postingsArray.intStarts[termID];
             intUptos = intPool.buffers[intStart >> IntBlockPool.INT_BLOCK_SHIFT];

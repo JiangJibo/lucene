@@ -55,6 +55,9 @@ public final class BytesRefHash {
   private int hashSize;
   private int hashHalfSize;
   private int hashMask;
+  /**
+   * 当前处理过的term的数量
+   */
   private int count;
   private int lastCount = -1;
   private int[] ids;
@@ -235,7 +238,7 @@ public final class BytesRefHash {
   }
 
   /**
-   * Adds a new {@link BytesRef}
+   * Adds a new {@link BytesRef},1 或者 2 个字节表示长度,接下来是数据
    * 
    * @param bytes
    *          the bytes to hash
@@ -253,16 +256,18 @@ public final class BytesRefHash {
     final int length = bytes.length;
     // final position
     final int hashPos = findHash(bytes);
+    // 找到此term在ids数组里的位置, 也就是此term在字典里的序号
     int e = ids[hashPos];
-    
+    // 如果e==-1, 则是此term值的第一次写入, 不是-1代表之前写入过此term值
     if (e == -1) {
-      // new entry
+      // new entry, 额外2个字节用来记录数据的长度,类似header里的bodyLength
       final int len2 = 2 + bytes.length;
       if (len2 + pool.byteUpto > BYTE_BLOCK_SIZE) {
         if (len2 > BYTE_BLOCK_SIZE) {
           throw new MaxBytesLengthExceededException("bytes can be at most "
               + (BYTE_BLOCK_SIZE - 2) + " in length; got " + bytes.length);
         }
+        // bytePool生成下一个buffer
         pool.nextBuffer();
       }
       final byte[] buffer = pool.buffer;
@@ -273,7 +278,7 @@ public final class BytesRefHash {
             + bytesStart.length;
       }
       e = count++;
-
+      // 指向bytePool的最新的数据位置
       bytesStart[e] = bufferUpto + pool.byteOffset;
 
       // We first encode the length, followed by the
@@ -281,9 +286,11 @@ public final class BytesRefHash {
       // 1 or 2 bytes at most (we reject too-long terms,
       // above).
       if (length < 128) {
-        // 1 byte to store length
+        // 1 byte to store length, buffer上存入一个字节标识长度
         buffer[bufferUpto] = (byte) length;
+        // 更新byteUpto, 增加相应的偏移量(数据长度+一个长度表示字节)
         pool.byteUpto += length + 1;
+        // 将bytes里的数据拷贝到buffer中
         assert length >= 0: "Length must be positive: " + length;
         System.arraycopy(bytes.bytes, bytes.offset, buffer, bufferUpto + 1,
             length);
@@ -296,6 +303,7 @@ public final class BytesRefHash {
             length);
       }
       assert ids[hashPos] == -1;
+      // 在hashPos位置存储term的序号,也就是此term在字典里的序号
       ids[hashPos] = e;
 
       if (count == hashHalfSize) {
