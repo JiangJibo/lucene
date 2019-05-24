@@ -231,7 +231,7 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
       } else {
         assert !writeOffsets;
       }
-      //System.out.println("PA init freqs=" + writeFreqs + " pos=" + writeProx + " offs=" + writeOffsets);
+      System.out.println("PA init freqs=" + writeFreqs + " pos=" + writeProx + " offs=" + writeOffsets);
     }
 
     int termFreqs[];                                   // # times this term occurs in the current doc

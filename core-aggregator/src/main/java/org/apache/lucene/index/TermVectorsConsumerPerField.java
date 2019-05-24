@@ -25,278 +25,298 @@ import org.apache.lucene.util.BytesRef;
 
 final class TermVectorsConsumerPerField extends TermsHashPerField {
 
-  private TermVectorsPostingsArray termVectorsPostingsArray;
+    private TermVectorsPostingsArray termVectorsPostingsArray;
 
-  final TermVectorsConsumer termsWriter;
+    final TermVectorsConsumer termsWriter;
 
-  boolean doVectors;
-  boolean doVectorPositions;
-  boolean doVectorOffsets;
-  boolean doVectorPayloads;
+    boolean doVectors;
+    boolean doVectorPositions;
+    boolean doVectorOffsets;
+    boolean doVectorPayloads;
 
-  OffsetAttribute offsetAttribute;
-  PayloadAttribute payloadAttribute;
-  boolean hasPayloads; // if enabled, and we actually saw any for this field
+    OffsetAttribute offsetAttribute;
+    PayloadAttribute payloadAttribute;
+    boolean hasPayloads; // if enabled, and we actually saw any for this field
 
-  public TermVectorsConsumerPerField(FieldInvertState invertState, TermVectorsConsumer termsWriter, FieldInfo fieldInfo) {
-    super(2, invertState, termsWriter, null, fieldInfo);
-    this.termsWriter = termsWriter;
-  }
-
-  /** Called once per field per document if term vectors
-   *  are enabled, to write the vectors to
-   *  RAMOutputStream, which is then quickly flushed to
-   *  the real term vectors files in the Directory. */  @Override
-  void finish() {
-    if (!doVectors || bytesHash.size() == 0) {
-      return;
-    }
-    termsWriter.addFieldToFlush(this);
-  }
-
-  void finishDocument() throws IOException {
-    if (doVectors == false) {
-      return;
+    public TermVectorsConsumerPerField(FieldInvertState invertState, TermVectorsConsumer termsWriter, FieldInfo fieldInfo) {
+        super(2, invertState, termsWriter, null, fieldInfo);
+        this.termsWriter = termsWriter;
     }
 
-    doVectors = false;
-
-    final int numPostings = bytesHash.size();
-
-    final BytesRef flushTerm = termsWriter.flushTerm;
-
-    assert numPostings >= 0;
-
-    // This is called once, after inverting all occurrences
-    // of a given field in the doc.  At this point we flush
-    // our hash into the DocWriter.
-
-    TermVectorsPostingsArray postings = termVectorsPostingsArray;
-    final TermVectorsWriter tv = termsWriter.writer;
-
-    final int[] termIDs = sortPostings();
-
-    tv.startField(fieldInfo, numPostings, doVectorPositions, doVectorOffsets, hasPayloads);
-    
-    final ByteSliceReader posReader = doVectorPositions ? termsWriter.vectorSliceReaderPos : null;
-    final ByteSliceReader offReader = doVectorOffsets ? termsWriter.vectorSliceReaderOff : null;
-    
-    for(int j=0;j<numPostings;j++) {
-      final int termID = termIDs[j];
-      final int freq = postings.freqs[termID];
-
-      // Get BytesRef
-      termBytePool.setBytesRef(flushTerm, postings.textStarts[termID]);
-      tv.startTerm(flushTerm, freq);
-      
-      if (doVectorPositions || doVectorOffsets) {
-        if (posReader != null) {
-          initReader(posReader, termID, 0);
+    /**
+     * Called once per field per document if term vectors
+     * are enabled, to write the vectors to
+     * RAMOutputStream, which is then quickly flushed to
+     * the real term vectors files in the Directory.
+     */
+    @Override
+    void finish() {
+        if (!doVectors || bytesHash.size() == 0) {
+            return;
         }
-        if (offReader != null) {
-          initReader(offReader, termID, 1);
-        }
-        tv.addProx(freq, posReader, offReader);
-      }
-      tv.finishTerm();
+        termsWriter.addFieldToFlush(this);
     }
-    tv.finishField();
 
-    reset();
+    void finishDocument() throws IOException {
+        if (doVectors == false) {
+            return;
+        }
 
-    fieldInfo.setStoreTermVectors();
-  }
+        doVectors = false;
 
-  @Override
-  boolean start(IndexableField field, boolean first) {
-    super.start(field, first);
-    assert field.fieldType().indexOptions() != IndexOptions.NONE;
+        final int numPostings = bytesHash.size();
 
-    if (first) {
+        final BytesRef flushTerm = termsWriter.flushTerm;
 
-      if (bytesHash.size() != 0) {
-        // Only necessary if previous doc hit a
-        // non-aborting exception while writing vectors in
-        // this field:
+        assert numPostings >= 0;
+
+        // This is called once, after inverting all occurrences
+        // of a given field in the doc.  At this point we flush
+        // our hash into the DocWriter.
+
+        TermVectorsPostingsArray postings = termVectorsPostingsArray;
+        final TermVectorsWriter tv = termsWriter.writer;
+
+        final int[] termIDs = sortPostings();
+
+        tv.startField(fieldInfo, numPostings, doVectorPositions, doVectorOffsets, hasPayloads);
+
+        final ByteSliceReader posReader = doVectorPositions ? termsWriter.vectorSliceReaderPos : null;
+        final ByteSliceReader offReader = doVectorOffsets ? termsWriter.vectorSliceReaderOff : null;
+
+        for (int j = 0; j < numPostings; j++) {
+            final int termID = termIDs[j];
+            final int freq = postings.freqs[termID];
+
+            // Get BytesRef
+            termBytePool.setBytesRef(flushTerm, postings.textStarts[termID]);
+            tv.startTerm(flushTerm, freq);
+
+            if (doVectorPositions || doVectorOffsets) {
+                if (posReader != null) {
+                    initReader(posReader, termID, 0);
+                }
+                if (offReader != null) {
+                    initReader(offReader, termID, 1);
+                }
+                tv.addProx(freq, posReader, offReader);
+            }
+            tv.finishTerm();
+        }
+        tv.finishField();
+
         reset();
-      }
 
-      bytesHash.reinit();
+        fieldInfo.setStoreTermVectors();
+    }
 
-      hasPayloads = false;
+    @Override
+    boolean start(IndexableField field, boolean first) {
+        super.start(field, first);
+        assert field.fieldType().indexOptions() != IndexOptions.NONE;
 
-      doVectors = field.fieldType().storeTermVectors();
+        if (first) {
 
-      if (doVectors) {
+            if (bytesHash.size() != 0) {
+                // Only necessary if previous doc hit a
+                // non-aborting exception while writing vectors in
+                // this field:
+                reset();
+            }
 
-        termsWriter.hasVectors = true;
+            bytesHash.reinit();
 
-        doVectorPositions = field.fieldType().storeTermVectorPositions();
+            hasPayloads = false;
 
-        // Somewhat confusingly, unlike postings, you are
-        // allowed to index TV offsets without TV positions:
-        doVectorOffsets = field.fieldType().storeTermVectorOffsets();
+            doVectors = field.fieldType().storeTermVectors();
+
+            if (doVectors) {
+
+                termsWriter.hasVectors = true;
+
+                doVectorPositions = field.fieldType().storeTermVectorPositions();
+
+                // Somewhat confusingly, unlike postings, you are
+                // allowed to index TV offsets without TV positions:
+                doVectorOffsets = field.fieldType().storeTermVectorOffsets();
+
+                if (doVectorPositions) {
+                    doVectorPayloads = field.fieldType().storeTermVectorPayloads();
+                } else {
+                    doVectorPayloads = false;
+                    if (field.fieldType().storeTermVectorPayloads()) {
+                        // TODO: move this check somewhere else, and impl the other missing ones
+                        throw new IllegalArgumentException("cannot index term vector payloads without term vector positions (field=\"" + field.name() + "\")");
+                    }
+                }
+
+            } else {
+                if (field.fieldType().storeTermVectorOffsets()) {
+                    throw new IllegalArgumentException("cannot index term vector offsets when term vectors are not indexed (field=\"" + field.name() + "\")");
+                }
+                if (field.fieldType().storeTermVectorPositions()) {
+                    throw new IllegalArgumentException("cannot index term vector positions when term vectors are not indexed (field=\"" + field.name() + "\")");
+                }
+                if (field.fieldType().storeTermVectorPayloads()) {
+                    throw new IllegalArgumentException("cannot index term vector payloads when term vectors are not indexed (field=\"" + field.name() + "\")");
+                }
+            }
+        } else {
+            if (doVectors != field.fieldType().storeTermVectors()) {
+                throw new IllegalArgumentException(
+                    "all instances of a given field name must have the same term vectors settings (storeTermVectors changed for field=\"" + field.name()
+                        + "\")");
+            }
+            if (doVectorPositions != field.fieldType().storeTermVectorPositions()) {
+                throw new IllegalArgumentException(
+                    "all instances of a given field name must have the same term vectors settings (storeTermVectorPositions changed for field=\"" + field.name()
+                        + "\")");
+            }
+            if (doVectorOffsets != field.fieldType().storeTermVectorOffsets()) {
+                throw new IllegalArgumentException(
+                    "all instances of a given field name must have the same term vectors settings (storeTermVectorOffsets changed for field=\"" + field.name()
+                        + "\")");
+            }
+            if (doVectorPayloads != field.fieldType().storeTermVectorPayloads()) {
+                throw new IllegalArgumentException(
+                    "all instances of a given field name must have the same term vectors settings (storeTermVectorPayloads changed for field=\"" + field.name()
+                        + "\")");
+            }
+        }
+
+        if (doVectors) {
+            if (doVectorOffsets) {
+                offsetAttribute = fieldState.offsetAttribute;
+                assert offsetAttribute != null;
+            }
+
+            if (doVectorPayloads) {
+                // Can be null:
+                payloadAttribute = fieldState.payloadAttribute;
+            } else {
+                payloadAttribute = null;
+            }
+        }
+
+        return doVectors;
+    }
+
+    /**
+     * 写入位置信息
+     *
+     * @param postings
+     * @param termID
+     */
+    void writeProx(TermVectorsPostingsArray postings, int termID) {
+        if (doVectorOffsets) {
+            int startOffset = fieldState.offset + offsetAttribute.startOffset();
+            int endOffset = fieldState.offset + offsetAttribute.endOffset();
+
+            writeVInt(1, startOffset - postings.lastOffsets[termID]);
+            writeVInt(1, endOffset - startOffset);
+            postings.lastOffsets[termID] = endOffset;
+        }
 
         if (doVectorPositions) {
-          doVectorPayloads = field.fieldType().storeTermVectorPayloads();
-        } else {
-          doVectorPayloads = false;
-          if (field.fieldType().storeTermVectorPayloads()) {
-            // TODO: move this check somewhere else, and impl the other missing ones
-            throw new IllegalArgumentException("cannot index term vector payloads without term vector positions (field=\"" + field.name() + "\")");
-          }
+            final BytesRef payload;
+            if (payloadAttribute == null) {
+                payload = null;
+            } else {
+                payload = payloadAttribute.getPayload();
+            }
+
+            final int pos = fieldState.position - postings.lastPositions[termID];
+            if (payload != null && payload.length > 0) {
+                writeVInt(0, (pos << 1) | 1);
+                writeVInt(0, payload.length);
+                writeBytes(0, payload.bytes, payload.offset, payload.length);
+                hasPayloads = true;
+            } else {
+                writeVInt(0, pos << 1);
+            }
+            postings.lastPositions[termID] = fieldState.position;
         }
-        
-      } else {
-        if (field.fieldType().storeTermVectorOffsets()) {
-          throw new IllegalArgumentException("cannot index term vector offsets when term vectors are not indexed (field=\"" + field.name() + "\")");
-        }
-        if (field.fieldType().storeTermVectorPositions()) {
-          throw new IllegalArgumentException("cannot index term vector positions when term vectors are not indexed (field=\"" + field.name() + "\")");
-        }
-        if (field.fieldType().storeTermVectorPayloads()) {
-          throw new IllegalArgumentException("cannot index term vector payloads when term vectors are not indexed (field=\"" + field.name() + "\")");
-        }
-      }
-    } else {
-      if (doVectors != field.fieldType().storeTermVectors()) {
-        throw new IllegalArgumentException("all instances of a given field name must have the same term vectors settings (storeTermVectors changed for field=\"" + field.name() + "\")");
-      }
-      if (doVectorPositions != field.fieldType().storeTermVectorPositions()) {
-        throw new IllegalArgumentException("all instances of a given field name must have the same term vectors settings (storeTermVectorPositions changed for field=\"" + field.name() + "\")");
-      }
-      if (doVectorOffsets != field.fieldType().storeTermVectorOffsets()) {
-        throw new IllegalArgumentException("all instances of a given field name must have the same term vectors settings (storeTermVectorOffsets changed for field=\"" + field.name() + "\")");
-      }
-      if (doVectorPayloads != field.fieldType().storeTermVectorPayloads()) {
-        throw new IllegalArgumentException("all instances of a given field name must have the same term vectors settings (storeTermVectorPayloads changed for field=\"" + field.name() + "\")");
-      }
-    }
-
-    if (doVectors) {
-      if (doVectorOffsets) {
-        offsetAttribute = fieldState.offsetAttribute;
-        assert offsetAttribute != null;
-      }
-
-      if (doVectorPayloads) {
-        // Can be null:
-        payloadAttribute = fieldState.payloadAttribute;
-      } else {
-        payloadAttribute = null;
-      }
-    }
-
-    return doVectors;
-  }
-  
-  void writeProx(TermVectorsPostingsArray postings, int termID) {    
-    if (doVectorOffsets) {
-      int startOffset = fieldState.offset + offsetAttribute.startOffset();
-      int endOffset = fieldState.offset + offsetAttribute.endOffset();
-
-      writeVInt(1, startOffset - postings.lastOffsets[termID]);
-      writeVInt(1, endOffset - startOffset);
-      postings.lastOffsets[termID] = endOffset;
-    }
-
-    if (doVectorPositions) {
-      final BytesRef payload;
-      if (payloadAttribute == null) {
-        payload = null;
-      } else {
-        payload = payloadAttribute.getPayload();
-      }
-      
-      final int pos = fieldState.position - postings.lastPositions[termID];
-      if (payload != null && payload.length > 0) {
-        writeVInt(0, (pos<<1)|1);
-        writeVInt(0, payload.length);
-        writeBytes(0, payload.bytes, payload.offset, payload.length);
-        hasPayloads = true;
-      } else {
-        writeVInt(0, pos<<1);
-      }
-      postings.lastPositions[termID] = fieldState.position;
-    }
-  }
-
-  @Override
-  void newTerm(final int termID) {
-    TermVectorsPostingsArray postings = termVectorsPostingsArray;
-
-    postings.freqs[termID] = getTermFreq();
-    postings.lastOffsets[termID] = 0;
-    postings.lastPositions[termID] = 0;
-    
-    writeProx(postings, termID);
-  }
-
-  @Override
-  void addTerm(final int termID) {
-    TermVectorsPostingsArray postings = termVectorsPostingsArray;
-
-    postings.freqs[termID] += getTermFreq();
-
-    writeProx(postings, termID);
-  }
-
-  private int getTermFreq() {
-    int freq = termFreqAtt.getTermFrequency();
-    if (freq != 1) {
-      if (doVectorPositions) {
-        throw new IllegalArgumentException("field \"" + fieldInfo.name + "\": cannot index term vector positions while using custom TermFrequencyAttribute");
-      }
-      if (doVectorOffsets) {
-        throw new IllegalArgumentException("field \"" + fieldInfo.name + "\": cannot index term vector offsets while using custom TermFrequencyAttribute");
-      }
-    }
-
-    return freq;
-  }
-
-  @Override
-  public void newPostingsArray() {
-    termVectorsPostingsArray = (TermVectorsPostingsArray) postingsArray;
-  }
-
-  @Override
-  ParallelPostingsArray createPostingsArray(int size) {
-    return new TermVectorsPostingsArray(size);
-  }
-
-  static final class TermVectorsPostingsArray extends ParallelPostingsArray {
-    public TermVectorsPostingsArray(int size) {
-      super(size);
-      freqs = new int[size];
-      lastOffsets = new int[size];
-      lastPositions = new int[size];
-    }
-
-    int[] freqs;                                       // How many times this term occurred in the current doc
-    int[] lastOffsets;                                 // Last offset we saw
-    int[] lastPositions;                               // Last position where this term occurred
-
-    @Override
-    ParallelPostingsArray newInstance(int size) {
-      return new TermVectorsPostingsArray(size);
     }
 
     @Override
-    void copyTo(ParallelPostingsArray toArray, int numToCopy) {
-      assert toArray instanceof TermVectorsPostingsArray;
-      TermVectorsPostingsArray to = (TermVectorsPostingsArray) toArray;
+    void newTerm(final int termID) {
+        TermVectorsPostingsArray postings = termVectorsPostingsArray;
 
-      super.copyTo(toArray, numToCopy);
+        postings.freqs[termID] = getTermFreq();
+        postings.lastOffsets[termID] = 0;
+        postings.lastPositions[termID] = 0;
 
-      System.arraycopy(freqs, 0, to.freqs, 0, size);
-      System.arraycopy(lastOffsets, 0, to.lastOffsets, 0, size);
-      System.arraycopy(lastPositions, 0, to.lastPositions, 0, size);
+        writeProx(postings, termID);
     }
 
     @Override
-    int bytesPerPosting() {
-      return super.bytesPerPosting() + 3 * Integer.BYTES;
+    void addTerm(final int termID) {
+        TermVectorsPostingsArray postings = termVectorsPostingsArray;
+
+        postings.freqs[termID] += getTermFreq();
+
+        writeProx(postings, termID);
     }
-  }
+
+    private int getTermFreq() {
+        int freq = termFreqAtt.getTermFrequency();
+        if (freq != 1) {
+            if (doVectorPositions) {
+                throw new IllegalArgumentException(
+                    "field \"" + fieldInfo.name + "\": cannot index term vector positions while using custom TermFrequencyAttribute");
+            }
+            if (doVectorOffsets) {
+                throw new IllegalArgumentException(
+                    "field \"" + fieldInfo.name + "\": cannot index term vector offsets while using custom TermFrequencyAttribute");
+            }
+        }
+
+        return freq;
+    }
+
+    @Override
+    public void newPostingsArray() {
+        termVectorsPostingsArray = (TermVectorsPostingsArray)postingsArray;
+    }
+
+    @Override
+    ParallelPostingsArray createPostingsArray(int size) {
+        return new TermVectorsPostingsArray(size);
+    }
+
+    static final class TermVectorsPostingsArray extends ParallelPostingsArray {
+
+        public TermVectorsPostingsArray(int size) {
+            super(size);
+            freqs = new int[size];
+            lastOffsets = new int[size];
+            lastPositions = new int[size];
+        }
+
+        int[] freqs;                                       // How many times this term occurred in the current doc
+        int[] lastOffsets;                                 // Last offset we saw
+        int[] lastPositions;                               // Last position where this term occurred
+
+        @Override
+        ParallelPostingsArray newInstance(int size) {
+            return new TermVectorsPostingsArray(size);
+        }
+
+        @Override
+        void copyTo(ParallelPostingsArray toArray, int numToCopy) {
+            assert toArray instanceof TermVectorsPostingsArray;
+            TermVectorsPostingsArray to = (TermVectorsPostingsArray)toArray;
+
+            super.copyTo(toArray, numToCopy);
+
+            System.arraycopy(freqs, 0, to.freqs, 0, size);
+            System.arraycopy(lastOffsets, 0, to.lastOffsets, 0, size);
+            System.arraycopy(lastPositions, 0, to.lastPositions, 0, size);
+        }
+
+        @Override
+        int bytesPerPosting() {
+            return super.bytesPerPosting() + 3 * Integer.BYTES;
+        }
+    }
 }
