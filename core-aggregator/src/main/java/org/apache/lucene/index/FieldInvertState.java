@@ -34,7 +34,13 @@ import org.apache.lucene.util.AttributeSource;
 public final class FieldInvertState {
   final int indexCreatedVersionMajor;
   final String name;
+  /**
+   * 当前term在field值 里的序号
+   */
   int position;
+  /**
+   * term的长度
+   */
   int length;
   int numOverlap;
   int offset;

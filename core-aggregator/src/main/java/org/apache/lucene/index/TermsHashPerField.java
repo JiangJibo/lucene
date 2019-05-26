@@ -175,7 +175,7 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
         // We are first in the chain so we must "intern" the
         // term text into textStart address
         // Get the text & hash of this term.
-        // termID :也就是此term在字典里的序号
+        // termID :也就是此term在当前field里的序号
         int termID = bytesHash.add(termAtt.getBytesRef());
         // 打印数据
         System.out.println("add term=" + termAtt.getBytesRef().utf8ToString() + " doc=" + docState.docID + " termID=" + termID);
@@ -209,7 +209,7 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
             newTerm(termID);
 
         }
-        // 之前写入过这个term值
+        // 当前field里此term不是第一次出现
         else {
             termID = (-termID) - 1;
             int intStart = postingsArray.intStarts[termID];
@@ -223,13 +223,23 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
         }
     }
 
+    /**
+     * 指向 {@link #intPool} intPool.buffer
+     *
+     * @see {@link #add()}
+     */
     int[] intUptos;
+    /**
+     * 当前数据在 intPool.buffe 中的最大位置,nextBuffer(..)中初始化为0
+     */
     int intUptoStart;
 
     void writeByte(int stream, byte b) {
         int upto = intUptos[intUptoStart + stream];
+        // upto >> ByteBlockPool.BYTE_BLOCK_SHIFT 相当于 upto/8192, 也就是定位第几个buffer
         byte[] bytes = bytePool.buffers[upto >> ByteBlockPool.BYTE_BLOCK_SHIFT];
         assert bytes != null;
+        // upto 对 8192*4 取余数
         int offset = upto & ByteBlockPool.BYTE_BLOCK_MASK;
         if (bytes[offset] != 0) {
             // End of slice; allocate a new one
@@ -247,8 +257,13 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
         for (int i = offset; i < end; i++) { writeByte(stream, b[i]); }
     }
 
+    /**
+     * @param stream
+     * @param i      16进制的数据
+     */
     void writeVInt(int stream, int i) {
         assert stream < streamCount;
+        // 如果一个field里term太多,那么序号就会超过128,所以要缩小下，写两个字节，因为这个数据时UTF-16的，所以int最多也就占2个字节
         while ((i & ~0x7F) != 0) {
             writeByte(stream, (byte)((i & 0x7f) | 0x80));
             i >>>= 7;
