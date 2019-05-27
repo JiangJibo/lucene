@@ -267,6 +267,7 @@ public abstract class CharTokenizer extends Tokenizer {
       final int charCount = Character.charCount(c);
       bufferIndex += charCount;
 
+      // 如果这个是一个token的字符
       if (isTokenChar(c)) {               // if it's a token char
         if (length == 0) {                // start of token
           assert start == -1;

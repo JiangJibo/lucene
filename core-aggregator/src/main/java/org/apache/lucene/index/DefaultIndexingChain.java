@@ -387,7 +387,7 @@ final class DefaultIndexingChain extends DocConsumer {
         // How many indexed field names we've seen (collapses
         // multiple field instances by the same name):
         int fieldCount = 0;
-
+        // 批量添加doc时, 当前序号
         long fieldGen = nextFieldGen++;
 
         // NOTE: we need two passes here, in case there are
@@ -428,6 +428,16 @@ final class DefaultIndexingChain extends DocConsumer {
         }
     }
 
+    /**
+     * 处理Field
+     *
+     * @param field
+     * @param fieldGen
+     * @param fieldCount 添加doc时当前field的序号
+     * @return
+     * @throws IOException
+     * @throws AbortingException
+     */
     private int processField(IndexableField field, long fieldGen, int fieldCount) throws IOException, AbortingException {
         String fieldName = field.name();
         IndexableFieldType fieldType = field.fieldType();
@@ -628,6 +638,7 @@ final class DefaultIndexingChain extends DocConsumer {
             // PerField.invert to allow for later downgrading of the index options:
             fi.setIndexOptions(fieldType.indexOptions());
 
+            // 构建循环链表 fp.next = fp
             fp = new PerField(docWriter.getIndexCreatedVersionMajor(), fi, invert);
             fp.next = fieldHash[hashPos];
             fieldHash[hashPos] = fp;
@@ -835,7 +846,8 @@ final class DefaultIndexingChain extends DocConsumer {
                         System.arraycopy(bigTerm.bytes, bigTerm.offset, prefix, 0, 30);
                         String msg = "Document contains at least one immense term in field=\"" + fieldInfo.name
                             + "\" (whose UTF8 encoding is longer than the max length " + DocumentsWriterPerThread.MAX_TERM_LENGTH_UTF8
-                            + "), all of which were skipped.  Please correct the analyzer to not produce such terms.  The prefix of the first immense term is: '"
+                            + "), all of which were skipped.  Please correct the analyzer to not produce such terms.  The prefix of the first immense term "
+                            + "is: '"
                             + Arrays.toString(prefix) + "...', original message: " + e.getMessage();
                         if (docState.infoStream.isEnabled("IW")) {
                             docState.infoStream.message("IW", "ERROR: " + msg);

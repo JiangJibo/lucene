@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Paths;
 
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.payloads.DelimitedPayloadTokenFilter;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -76,12 +77,17 @@ public class LuceneUsageExample {
         // field必须具备索引或者存储中的一个特性,如果两个都不要,那么这个属性就没用了
         FieldType fieldType = new FieldType();
         fieldType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
-
-        doc.add(new Field("title", "java introduction asda", fieldType));
+        Field field = new Field("title", "java introduction java asda", fieldType);
+        doc.add(field);
         doc.add(new Field("content", "python works well sdfasdf", fieldType));
         writer.addDocument(doc);
         //writer.optimize();
         writer.close();
+    }
+
+    @Test
+    public void testPayloadTokenFilter(){
+        AnalyzerFactory
     }
 
 }

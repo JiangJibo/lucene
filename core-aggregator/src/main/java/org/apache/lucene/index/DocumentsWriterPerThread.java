@@ -58,6 +58,9 @@ class DocumentsWriterPerThread {
         abstract DocConsumer getChain(DocumentsWriterPerThread documentsWriterPerThread) throws IOException;
     }
 
+    /**
+     * 和线程绑定的,线程私有的
+     */
     static final IndexingChain defaultIndexingChain = new IndexingChain() {
 
         @Override
@@ -245,6 +248,7 @@ class DocumentsWriterPerThread {
     public long updateDocument(Iterable<? extends IndexableField> doc, Analyzer analyzer, Term delTerm) throws IOException, AbortingException {
         testPoint("DocumentsWriterPerThread addDocument start");
         assert deleteQueue != null;
+        // 预定一个doc
         reserveOneDoc();
         docState.doc = doc;
         docState.analyzer = analyzer;

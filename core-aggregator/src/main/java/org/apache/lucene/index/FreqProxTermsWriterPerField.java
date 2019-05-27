@@ -63,6 +63,7 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
      * @param nextPerField
      */
     public FreqProxTermsWriterPerField(FieldInvertState invertState, TermsHash termsHash, FieldInfo fieldInfo, TermsHashPerField nextPerField) {
+        // 如果既要存储Freq,又要存储Prox, 那么需要两个stream
         super(fieldInfo.getIndexOptions().compareTo(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS) >= 0 ? 2 : 1, invertState, termsHash, nextPerField, fieldInfo);
         IndexOptions indexOptions = fieldInfo.getIndexOptions();
         assert indexOptions != IndexOptions.NONE;

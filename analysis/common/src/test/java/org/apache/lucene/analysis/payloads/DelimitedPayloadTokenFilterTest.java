@@ -28,8 +28,7 @@ public class DelimitedPayloadTokenFilterTest extends BaseTokenStreamTestCase {
   public void testPayloads() throws Exception {
     String test = "The quick|JJ red|JJ fox|NN jumped|VB over the lazy|JJ brown|JJ dogs|NN";
     DelimitedPayloadTokenFilter filter = new DelimitedPayloadTokenFilter
-      (whitespaceMockTokenizer(test), 
-       DelimitedPayloadTokenFilter.DEFAULT_DELIMITER, new IdentityEncoder());
+      (whitespaceMockTokenizer(test), DelimitedPayloadTokenFilter.DEFAULT_DELIMITER, new IdentityEncoder());
     CharTermAttribute termAtt = filter.getAttribute(CharTermAttribute.class);
     PayloadAttribute payAtt = filter.getAttribute(PayloadAttribute.class);
     filter.reset();

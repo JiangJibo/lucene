@@ -179,7 +179,7 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
         int termID = bytesHash.add(termAtt.getBytesRef());
         // 打印数据
         System.out.println("add term=" + termAtt.getBytesRef().utf8ToString() + " doc=" + docState.docID + " termID=" + termID);
-        // New posting, 也就是新增
+        // New posting, 也就是此term是当前field里第一次写入
         if (termID >= 0) {
             bytesHash.byteStart(termID);
             // Init stream slices, 如果当前buffer在加上待提交的超过了最大长度,新生成一个buffer,指向下一个buffer

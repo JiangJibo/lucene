@@ -30,6 +30,11 @@
             <artifactId>lucene-test-framework</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-analyzers-common</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 
