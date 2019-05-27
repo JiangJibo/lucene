@@ -104,7 +104,7 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
      */
     void writeProx(int termID, int proxCode) {
         if (payloadAttribute == null) {
-            // 写入position数据, 将 序号*2，也就是变成16进制
+            // 写入position数据, 将序号向左移动一位
             writeVInt(1, proxCode << 1);
         } else {
             BytesRef payload = payloadAttribute.getPayload();

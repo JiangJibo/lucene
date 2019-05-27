@@ -258,16 +258,23 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
     }
 
     /**
+     * 先写低位再写高位,按顺序, 也就是存储的顺序低位在前,高位在后
+     *
      * @param stream
-     * @param i      16进制的数据
+     * @param i 原始数据向左移动一位后的数据,假设 i = 10000
      */
     void writeVInt(int stream, int i) {
         assert stream < streamCount;
-        // 如果一个field里term太多,那么序号就会超过128,所以要缩小下，写两个字节，因为这个数据时UTF-16的，所以int最多也就占2个字节
+        // 如果一个field里term太多,那么序号就会超过128,所以需要用多个字节来表示,同时最高位用1表示后续还有跟着的字节
+        // 将i抹去7位后面的数据,将低7位置为0,之后得到的高位不为0, 比如 129 & ~0x7F = 128, 257 & ~0x7F = 256,
         while ((i & ~0x7F) != 0) {
+            // 先写数据低位, 10000%128 = 16,  16 | 0x80 = 144 , 144转为byte = -112, 也就是从-128往正的方向走 16(144-128)
+            // 用 - 号指定后续的字节是当前数字的
             writeByte(stream, (byte)((i & 0x7f) | 0x80));
+            // 然后将i向右移动7位,也就是抹去低7位
             i >>>= 7;
         }
+        // 最后写入, 如果前一个字节是负的,此字节写入: 10000%128 = 78
         writeByte(stream, (byte)i);
     }
 
