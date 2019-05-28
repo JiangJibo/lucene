@@ -782,7 +782,6 @@ final class DefaultIndexingChain extends DocConsumer {
                 termsHashPerField.start(field, first);
 
                 // 根据stopWords拆分得到terms,遍历term,能够指向下一个
-                // stream 可以是StopFilter
                 while (stream.incrementToken()) {
 
                     // If we hit an exception in stream.next below
