@@ -16,18 +16,21 @@
  */
 package org.apache.lucene.analysis;
 
-
 import java.io.IOException;
 
-import org.apache.lucene.analysis.TokenFilter;
-import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
-import org.apache.lucene.analysis.CharacterUtils;
+import org.apache.lucene.analysis.tokenattributes.PackedTokenAttributeImpl;
+import org.apache.lucene.util.AttributeFactory;
 
 /**
  * Normalizes token text to lower case.
  */
 public class LowerCaseFilter extends TokenFilter {
+
+  /**
+   * 初始化Attribute, 得到 {@link PackedTokenAttributeImpl}
+   * @see AttributeFactory#createAttributeInstance(Class)
+   */
   private final CharTermAttribute termAtt = addAttribute(CharTermAttribute.class);
   
   /**

@@ -1,4 +1,4 @@
-package org.apache.lucene.queryparser.simple;
+package org.apache.lucene.queryparser.bob;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CharArraySet;
@@ -6,6 +6,8 @@ import org.apache.lucene.analysis.core.LowerCaseFilter;
 import org.apache.lucene.analysis.core.StopAnalyzer;
 import org.apache.lucene.analysis.core.StopFilter;
 import org.apache.lucene.analysis.standard.StandardTokenizer;
+import org.apache.lucene.queryparser.bob.synonym.SynonymFilter;
+import org.apache.lucene.queryparser.bob.synonym.TestSynonymEngine;
 
 /**
  * DelimitedPayload的分词器
@@ -26,7 +28,10 @@ public class DelimitedPayloadAnalyzer extends Analyzer {
     @Override
     protected TokenStreamComponents createComponents(String fieldName) {
         StandardTokenizer source = new StandardTokenizer();
-        return new TokenStreamComponents(source, new SynonymFilter(new StopFilter(new LowerCaseFilter(source),
-            new CharArraySet(StopAnalyzer.ENGLISH_STOP_WORDS_SET, true)), new TestSynonymEngine()));
+        return new TokenStreamComponents(source,
+            new SynonymFilter(
+                new StopFilter(new LowerCaseFilter(source),
+                    new CharArraySet(StopAnalyzer.ENGLISH_STOP_WORDS_SET, true)),
+                new TestSynonymEngine()));
     }
 }

@@ -1,4 +1,4 @@
-package org.apache.lucene.queryparser.simple;
+package org.apache.lucene.queryparser.bob;
 
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -83,11 +83,6 @@ public class LuceneUsageExample {
         writer.addDocument(doc);
         //writer.optimize();
         writer.close();
-    }
-
-    @Test
-    public void testPayloadTokenFilter(){
-        AnalyzerFactory
     }
 
 }

@@ -1,4 +1,4 @@
-package org.apache.lucene.queryparser.simple;
+package org.apache.lucene.queryparser.bob.synonym;
 
 import java.io.IOException;
 import java.util.Stack;
@@ -13,7 +13,7 @@ import org.apache.lucene.util.AttributeSource;
  * @author wb-jjb318191
  * @create 2019-05-27 17:48
  */
-public class SynonymFilter extends TokenFilter {
+public final class SynonymFilter extends TokenFilter {
 
     private static final String TOKEN_TYPE_SYNONYM = "SYNONYM";
 
@@ -28,7 +28,7 @@ public class SynonymFilter extends TokenFilter {
      *
      * @param input
      */
-    protected SynonymFilter(TokenStream input, SynonymEngine synonymEngine) {
+    public SynonymFilter(TokenStream input, SynonymEngine synonymEngine) {
         super(input);
         this.synonymEngine = synonymEngine;
         synonymStack = new Stack<>();

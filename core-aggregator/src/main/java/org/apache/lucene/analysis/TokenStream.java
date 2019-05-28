@@ -92,6 +92,7 @@ public abstract class TokenStream extends AttributeSource implements Closeable {
      */
     protected TokenStream() {
         super(DEFAULT_TOKEN_ATTRIBUTE_FACTORY);
+        // 确认TokenStream的子类是匿名类或者Final修饰,或者 incrementToken() 方法必须final修饰
         assert assertFinal();
     }
 
