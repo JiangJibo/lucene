@@ -38,198 +38,203 @@ import org.apache.lucene.util.ThreadInterruptedException;
  * </p>
  */
 final class DocumentsWriterPerThreadPool {
-  
-  /**
-   * {@link ThreadState} references and guards a
-   * {@link DocumentsWriterPerThread} instance that is used during indexing to
-   * build a in-memory index segment. {@link ThreadState} also holds all flush
-   * related per-thread data controlled by {@link DocumentsWriterFlushControl}.
-   * <p>
-   * A {@link ThreadState}, its methods and members should only accessed by one
-   * thread a time. Users must acquire the lock via {@link ThreadState#lock()}
-   * and release the lock in a finally block via {@link ThreadState#unlock()}
-   * before accessing the state.
-   */
-  @SuppressWarnings("serial")
-  final static class ThreadState extends ReentrantLock {
-    DocumentsWriterPerThread dwpt;
-    // TODO this should really be part of DocumentsWriterFlushControl
-    // write access guarded by DocumentsWriterFlushControl
-    volatile boolean flushPending = false;
-    // TODO this should really be part of DocumentsWriterFlushControl
-    // write access guarded by DocumentsWriterFlushControl
-    long bytesUsed = 0;
 
-    // set by DocumentsWriter after each indexing op finishes
-    volatile long lastSeqNo;
-
-    ThreadState(DocumentsWriterPerThread dpwt) {
-      this.dwpt = dpwt;
-    }
-    
-    private void reset() {
-      assert this.isHeldByCurrentThread();
-      this.dwpt = null;
-      this.bytesUsed = 0;
-      this.flushPending = false;
-    }
-    
-    boolean isInitialized() {
-      assert this.isHeldByCurrentThread();
-      return dwpt != null;
-    }
-    
     /**
-     * Returns the number of currently active bytes in this ThreadState's
-     * {@link DocumentsWriterPerThread}
+     * 继承自可重入锁,这样当前线程就能尝试所以这个资源
+     * {@link ThreadState} references and guards a
+     * {@link DocumentsWriterPerThread} instance that is used during indexing to
+     * build a in-memory index segment. {@link ThreadState} also holds all flush
+     * related per-thread data controlled by {@link DocumentsWriterFlushControl}.
+     * <p>
+     * A {@link ThreadState}, its methods and members should only accessed by one
+     * thread a time. Users must acquire the lock via {@link ThreadState#lock()}
+     * and release the lock in a finally block via {@link ThreadState#unlock()}
+     * before accessing the state.
      */
-    public long getBytesUsedPerThread() {
-      assert this.isHeldByCurrentThread();
-      // public for FlushPolicy
-      return bytesUsed;
-    }
-    
-    /**
-     * Returns this {@link ThreadState}s {@link DocumentsWriterPerThread}
-     */
-    public DocumentsWriterPerThread getDocumentsWriterPerThread() {
-      assert this.isHeldByCurrentThread();
-      // public for FlushPolicy
-      return dwpt;
-    }
-    
-    /**
-     * Returns <code>true</code> iff this {@link ThreadState} is marked as flush
-     * pending otherwise <code>false</code>
-     */
-    public boolean isFlushPending() {
-      return flushPending;
-    }
-  }
+    @SuppressWarnings("serial")
+    final static class ThreadState extends ReentrantLock {
 
-  private final List<ThreadState> threadStates = new ArrayList<>();
+        DocumentsWriterPerThread dwpt;
+        // TODO this should really be part of DocumentsWriterFlushControl
+        // write access guarded by DocumentsWriterFlushControl
+        volatile boolean flushPending = false;
+        // TODO this should really be part of DocumentsWriterFlushControl
+        // write access guarded by DocumentsWriterFlushControl
+        long bytesUsed = 0;
 
-  private final List<ThreadState> freeList = new ArrayList<>();
+        // set by DocumentsWriter after each indexing op finishes
+        volatile long lastSeqNo;
 
-  private boolean aborted;
-
-  /**
-   * Returns the active number of {@link ThreadState} instances.
-   */
-  synchronized int getActiveThreadStateCount() {
-    return threadStates.size();
-  }
-
-  synchronized void setAbort() {
-    aborted = true;
-  }
-
-  synchronized void clearAbort() {
-    aborted = false;
-    notifyAll();
-  }
-
-  /**
-   * Returns a new {@link ThreadState} iff any new state is available otherwise
-   * <code>null</code>.
-   * <p>
-   * NOTE: the returned {@link ThreadState} is already locked iff non-
-   * <code>null</code>.
-   * 
-   * @return a new {@link ThreadState} iff any new state is available otherwise
-   *         <code>null</code>
-   */
-  private synchronized ThreadState newThreadState() {
-    while (aborted) {
-      try {
-        wait();
-      } catch (InterruptedException ie) {
-        throw new ThreadInterruptedException(ie);        
-      }
-    }
-    ThreadState threadState = new ThreadState(null);
-    threadState.lock(); // lock so nobody else will get this ThreadState
-    threadStates.add(threadState);
-    return threadState;
-  }
-
-  DocumentsWriterPerThread reset(ThreadState threadState) {
-    assert threadState.isHeldByCurrentThread();
-    final DocumentsWriterPerThread dwpt = threadState.dwpt;
-    threadState.reset();
-    return dwpt;
-  }
-  
-  void recycle(DocumentsWriterPerThread dwpt) {
-    // don't recycle DWPT by default
-  }
-
-  // TODO: maybe we should try to do load leveling here: we want roughly even numbers
-  // of items (docs, deletes, DV updates) to most take advantage of concurrency while flushing
-
-  /** This method is used by DocumentsWriter/FlushControl to obtain a ThreadState to do an indexing operation (add/updateDocument). */
-  ThreadState getAndLock(Thread requestingThread, DocumentsWriter documentsWriter) {
-    ThreadState threadState = null;
-    synchronized (this) {
-      if (freeList.isEmpty()) {
-        // ThreadState is already locked before return by this method:
-        return newThreadState();
-      } else {
-        // Important that we are LIFO here! This way if number of concurrent indexing threads was once high, but has now reduced, we only use a
-        // limited number of thread states:
-        threadState = freeList.remove(freeList.size()-1);
-
-        if (threadState.dwpt == null) {
-          // This thread-state is not initialized, e.g. it
-          // was just flushed. See if we can instead find
-          // another free thread state that already has docs
-          // indexed. This way if incoming thread concurrency
-          // has decreased, we don't leave docs
-          // indefinitely buffered, tying up RAM.  This
-          // will instead get those thread states flushed,
-          // freeing up RAM for larger segment flushes:
-          for(int i=0;i<freeList.size();i++) {
-            ThreadState ts = freeList.get(i);
-            if (ts.dwpt != null) {
-              // Use this one instead, and swap it with
-              // the un-initialized one:
-              freeList.set(i, threadState);
-              threadState = ts;
-              break;
-            }
-          }
+        ThreadState(DocumentsWriterPerThread dpwt) {
+            this.dwpt = dpwt;
         }
-      }
+
+        private void reset() {
+            assert this.isHeldByCurrentThread();
+            this.dwpt = null;
+            this.bytesUsed = 0;
+            this.flushPending = false;
+        }
+
+        boolean isInitialized() {
+            assert this.isHeldByCurrentThread();
+            return dwpt != null;
+        }
+
+        /**
+         * Returns the number of currently active bytes in this ThreadState's
+         * {@link DocumentsWriterPerThread}
+         */
+        public long getBytesUsedPerThread() {
+            assert this.isHeldByCurrentThread();
+            // public for FlushPolicy
+            return bytesUsed;
+        }
+
+        /**
+         * Returns this {@link ThreadState}s {@link DocumentsWriterPerThread}
+         */
+        public DocumentsWriterPerThread getDocumentsWriterPerThread() {
+            assert this.isHeldByCurrentThread();
+            // public for FlushPolicy
+            return dwpt;
+        }
+
+        /**
+         * Returns <code>true</code> iff this {@link ThreadState} is marked as flush
+         * pending otherwise <code>false</code>
+         */
+        public boolean isFlushPending() {
+            return flushPending;
+        }
     }
 
-    // This could take time, e.g. if the threadState is [briefly] checked for flushing:
-    threadState.lock();
+    private final List<ThreadState> threadStates = new ArrayList<>();
 
-    return threadState;
-  }
+    private final List<ThreadState> freeList = new ArrayList<>();
 
-  void release(ThreadState state) {
-    state.unlock();
-    synchronized (this) {
-      freeList.add(state);
+    private boolean aborted;
+
+    /**
+     * Returns the active number of {@link ThreadState} instances.
+     */
+    synchronized int getActiveThreadStateCount() {
+        return threadStates.size();
     }
-  }
-  
-  /**
-   * Returns the <i>i</i>th active {@link ThreadState} where <i>i</i> is the
-   * given ord.
-   * 
-   * @param ord
-   *          the ordinal of the {@link ThreadState}
-   * @return the <i>i</i>th active {@link ThreadState} where <i>i</i> is the
-   *         given ord.
-   */
-  synchronized ThreadState getThreadState(int ord) {
-    return threadStates.get(ord);
-  }
 
-  // TODO: merge this with getActiveThreadStateCount: they are the same!
-  synchronized int getMaxThreadStates() {
-    return threadStates.size();
-  }
+    synchronized void setAbort() {
+        aborted = true;
+    }
+
+    synchronized void clearAbort() {
+        aborted = false;
+        notifyAll();
+    }
+
+    /**
+     * Returns a new {@link ThreadState} iff any new state is available otherwise
+     * <code>null</code>.
+     * <p>
+     * NOTE: the returned {@link ThreadState} is already locked iff non-
+     * <code>null</code>.
+     *
+     * @return a new {@link ThreadState} iff any new state is available otherwise
+     * <code>null</code>
+     */
+    private synchronized ThreadState newThreadState() {
+        while (aborted) {
+            try {
+                wait();
+            } catch (InterruptedException ie) {
+                throw new ThreadInterruptedException(ie);
+            }
+        }
+        ThreadState threadState = new ThreadState(null);
+        threadState.lock(); // lock so nobody else will get this ThreadState
+        threadStates.add(threadState);
+        return threadState;
+    }
+
+    DocumentsWriterPerThread reset(ThreadState threadState) {
+        assert threadState.isHeldByCurrentThread();
+        final DocumentsWriterPerThread dwpt = threadState.dwpt;
+        threadState.reset();
+        return dwpt;
+    }
+
+    void recycle(DocumentsWriterPerThread dwpt) {
+        // don't recycle DWPT by default
+    }
+
+    // TODO: maybe we should try to do load leveling here: we want roughly even numbers
+    // of items (docs, deletes, DV updates) to most take advantage of concurrency while flushing
+
+    /**
+     * 从空闲列表里拿一个或者新生成一个ThreadState, 且其 {@link ThreadState#dwpt} 已经初始化好的,也就是不为null
+     * This method is used by DocumentsWriter/FlushControl to obtain a ThreadState to do an indexing operation (add/updateDocument).
+     */
+    ThreadState getAndLock(Thread requestingThread, DocumentsWriter documentsWriter) {
+        ThreadState threadState = null;
+        synchronized (this) {
+            // 如果空闲列表是空的,那么新生成一个
+            if (freeList.isEmpty()) {
+                // ThreadState is already locked before return by this method:
+                return newThreadState();
+            } else {
+                // Important that we are LIFO here! This way if number of concurrent indexing threads was once high, but has now reduced, we only use a
+                // limited number of thread states:
+                threadState = freeList.remove(freeList.size() - 1);
+
+                if (threadState.dwpt == null) {
+                    // This thread-state is not initialized, e.g. it
+                    // was just flushed. See if we can instead find
+                    // another free thread state that already has docs
+                    // indexed. This way if incoming thread concurrency
+                    // has decreased, we don't leave docs
+                    // indefinitely buffered, tying up RAM.  This
+                    // will instead get those thread states flushed,
+                    // freeing up RAM for larger segment flushes:
+                    for (int i = 0; i < freeList.size(); i++) {
+                        ThreadState ts = freeList.get(i);
+                        if (ts.dwpt != null) {
+                            // Use this one instead, and swap it with
+                            // the un-initialized one:
+                            freeList.set(i, threadState);
+                            threadState = ts;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // This could take time, e.g. if the threadState is [briefly] checked for flushing:
+        threadState.lock();
+
+        return threadState;
+    }
+
+    void release(ThreadState state) {
+        state.unlock();
+        synchronized (this) {
+            freeList.add(state);
+        }
+    }
+
+    /**
+     * Returns the <i>i</i>th active {@link ThreadState} where <i>i</i> is the
+     * given ord.
+     *
+     * @param ord the ordinal of the {@link ThreadState}
+     * @return the <i>i</i>th active {@link ThreadState} where <i>i</i> is the
+     * given ord.
+     */
+    synchronized ThreadState getThreadState(int ord) {
+        return threadStates.get(ord);
+    }
+
+    // TODO: merge this with getActiveThreadStateCount: they are the same!
+    synchronized int getMaxThreadStates() {
+        return threadStates.size();
+    }
 }

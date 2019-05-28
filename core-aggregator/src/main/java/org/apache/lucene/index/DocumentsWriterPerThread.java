@@ -148,7 +148,12 @@ class DocumentsWriterPerThread {
     final TrackingDirectoryWrapper directory;
     final Directory directoryOrig;
     final DocState docState;
+    /**
+     * 处理Doc所有的type和fields
+     * {@link DefaultIndexingChain}
+     */
     final DocConsumer consumer;
+
     final Counter bytesUsed;
 
     SegmentWriteState flushState;

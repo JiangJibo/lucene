@@ -450,7 +450,8 @@ final class DefaultIndexingChain extends DocConsumer {
 
         // Invert indexed fields:
         if (fieldType.indexOptions() != IndexOptions.NONE) {
-            // 获取处理一个Field相关的数据
+            // 获取处理此Field相关的数据, 针对一个Field都会有相应的一个PerField,是和线程绑定一起的
+            // 缓存每个Field对应的PerField, 每个PerField里处理Field的所有数据,比如freqs,prox,offset等
             fp = getOrAddField(fieldName, fieldType, true);
             // 是不是此Field的第一次写入数据
             boolean first = fp.fieldGen != fieldGen;
@@ -677,6 +678,9 @@ final class DefaultIndexingChain extends DocConsumer {
         final Similarity similarity;
 
         FieldInvertState invertState;
+        /**
+         * 负责tvx, tvd, tvf信息的处理
+         */
         TermsHashPerField termsHashPerField;
 
         // Non-null if this field ever had doc values in this

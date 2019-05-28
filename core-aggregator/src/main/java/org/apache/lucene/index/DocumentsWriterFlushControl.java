@@ -466,8 +466,7 @@ final class DocumentsWriterFlushControl implements Accountable {
     }
 
     ThreadState obtainAndLock() {
-        final ThreadState perThread = perThreadPool.getAndLock(Thread
-            .currentThread(), documentsWriter);
+        final ThreadState perThread = perThreadPool.getAndLock(Thread.currentThread(), documentsWriter);
         boolean success = false;
         try {
             if (perThread.isInitialized() && perThread.dwpt.deleteQueue != documentsWriter.deleteQueue) {
@@ -481,6 +480,7 @@ final class DocumentsWriterFlushControl implements Accountable {
             return perThread;
         } finally {
             if (!success) { // make sure we unlock if this fails
+                // 释放ThreadState,将其还给freeList
                 perThreadPool.release(perThread);
             }
         }

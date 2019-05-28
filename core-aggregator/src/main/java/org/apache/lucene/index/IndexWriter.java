@@ -1987,6 +1987,11 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
         return globalFieldNumberMap.getFieldNames(); // FieldNumbers#getFieldNames() returns an unmodifiableSet
     }
 
+    /**
+     * 生成一个新的segment文件名称： segments_N
+     *
+     * @return
+     */
     final String newSegmentName() {
         // Cannot synchronize on IndexWriter because that causes
         // deadlock

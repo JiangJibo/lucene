@@ -503,7 +503,7 @@ final class DocumentsWriter implements Closeable, Accountable {
 
         // 查看是否有待flush的task
         boolean hasEvents = preUpdate();
-
+        // 当前线程拿到一个ThreadState, 且锁住了这个ThreadState
         final ThreadState perThread = flushControl.obtainAndLock();
 
         final DocumentsWriterPerThread flushingDWPT;
@@ -512,8 +512,9 @@ final class DocumentsWriter implements Closeable, Accountable {
             // This must happen after we've pulled the ThreadState because IW.close
             // waits for all ThreadStates to be released:
             ensureOpen();
-            // 确定perThread里有dwpt
+            // 确定perThread里dwpt被实例化
             ensureInitialized(perThread);
+
             assert perThread.isInitialized();
             final DocumentsWriterPerThread dwpt = perThread.dwpt;
             final int dwptNumDocs = dwpt.getNumDocsInRAM();
