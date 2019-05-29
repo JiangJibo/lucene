@@ -465,9 +465,10 @@ final class DefaultIndexingChain extends DocConsumer {
             verifyUnIndexedFieldType(fieldName, fieldType);
         }
 
-        // Add stored fields:
+        // Add stored fields: Field需要被存储
         if (fieldType.stored()) {
             if (fp == null) {
+                // 不倒排的PerField
                 fp = getOrAddField(fieldName, fieldType, false);
             }
             if (fieldType.stored()) {
@@ -719,6 +720,7 @@ final class DefaultIndexingChain extends DocConsumer {
          */
         void setInvertState() {
             invertState = new FieldInvertState(indexCreatedVersionMajor, fieldInfo.name);
+            // 初始化Field域的处理器
             termsHashPerField = termsHash.addField(invertState, fieldInfo);
             if (fieldInfo.omitsNorms() == false) {
                 assert norms == null;
@@ -782,6 +784,7 @@ final class DefaultIndexingChain extends DocConsumer {
             try (TokenStream stream = tokenStream = field.tokenStream(docState.analyzer, tokenStream)) {
                 // reset the TokenStream to the first token
                 stream.reset();
+                // 将stream设置入 invertState, 这样 invertState 就能获取当前term的所有属性
                 invertState.setAttributeSource(stream);
                 termsHashPerField.start(field, first);
 
@@ -795,7 +798,9 @@ final class DefaultIndexingChain extends DocConsumer {
                     // will be marked as deleted, but still
                     // consume a docID
 
+                    // 相较于上一个term的prox增量
                     int posIncr = invertState.posIncrAttribute.getPositionIncrement();
+                    // 更新invertState的最新的position
                     invertState.position += posIncr;
                     if (invertState.position < invertState.lastPosition) {
                         if (posIncr == 0) {
@@ -812,11 +817,13 @@ final class DefaultIndexingChain extends DocConsumer {
                             "position " + invertState.position + " is too large for field '" + field.name() + "': max allowed position is "
                                 + IndexWriter.MAX_POSITION);
                     }
+                    // 更新最后处理的position
                     invertState.lastPosition = invertState.position;
+                    // 如果posIncr==0,也就是没有指向下一个term
                     if (posIncr == 0) {
                         invertState.numOverlap++;
                     }
-                    // 确定一个term的起始字节位置和结束字节位置,
+                    // invertState.offset 默认值未0, 确定一个term的起始字节位置和结束字节位置,
                     int startOffset = invertState.offset + invertState.offsetAttribute.startOffset();
                     int endOffset = invertState.offset + invertState.offsetAttribute.endOffset();
                     if (startOffset < invertState.lastStartOffset || endOffset < startOffset) {
@@ -825,6 +832,7 @@ final class DefaultIndexingChain extends DocConsumer {
                                 + "startOffset=" + startOffset + ",endOffset=" + endOffset + ",lastStartOffset=" + invertState.lastStartOffset + " for field '"
                                 + field.name() + "'");
                     }
+                    // 更新最新的这个term的起始偏移量
                     invertState.lastStartOffset = startOffset;
 
                     try {
@@ -842,6 +850,7 @@ final class DefaultIndexingChain extends DocConsumer {
                     // corrupt and should not be flushed to a
                     // new segment:
                     try {
+                        // termsHashPerField 持有 invertState 和 fieldInfo 信息
                         termsHashPerField.add();
                     } catch (MaxBytesLengthExceededException e) {
                         byte[] prefix = new byte[30];

@@ -59,6 +59,9 @@ public final class BytesRefHash {
      */
     private int count;
     private int lastCount = -1;
+    /**
+     * 通过term的hash,定位位置,如果有数据就不断完后查,直到获取到一个空的,然后值存的是term在field里的序号,position
+     */
     private int[] ids;
     private final BytesStartArray bytesStartArray;
     private Counter bytesUsed;
@@ -255,6 +258,7 @@ public final class BytesRefHash {
         if (e == -1) {
             // new entry, 额外2个字节用来记录数据的长度,类似header里的bodyLength
             final int len2 = 2 + bytes.length;
+            // 如果byteUpto+待写入数据超过 1 << 15
             if (len2 + pool.byteUpto > BYTE_BLOCK_SIZE) {
                 if (len2 > BYTE_BLOCK_SIZE) {
                     throw new MaxBytesLengthExceededException("bytes can be at most "
@@ -271,7 +275,7 @@ public final class BytesRefHash {
                     + bytesStart.length;
             }
             e = count++;
-            // 指向bytePool的最新的数据位置
+            // e标识当前term是第几个, bytesStart[e] 指向bytePool的最新的数据位置
             bytesStart[e] = bufferUpto + pool.byteOffset;
 
             // We first encode the length, followed by the
@@ -288,8 +292,10 @@ public final class BytesRefHash {
                 System.arraycopy(bytes.bytes, bytes.offset, buffer, bufferUpto + 1,
                     length);
             } else {
-                // 2 byte to store length
-                buffer[bufferUpto] = (byte)(0x80 | (length & 0x7f));
+                // 超过128, 2 byte to store length
+                // length & 0111 1111  | 1000 0000 , 用1开头的字节表示后一个字节也是当前字节的数据, 1xxx xxxx, 1之后的数据就是int里低位数据
+                buffer[bufferUpto] = (byte)((length & 0x7f) | 0x80 );
+                // term字节长度右移7位, 然后 & 1111 1111, 也就是取高位存入
                 buffer[bufferUpto + 1] = (byte)((length >> 7) & 0xff);
                 pool.byteUpto += length + 2;
                 System.arraycopy(bytes.bytes, bytes.offset, buffer, bufferUpto + 2,

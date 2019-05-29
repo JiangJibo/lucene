@@ -106,10 +106,16 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
     void writeProx(int termID, int proxCode) {
         if (payloadAttribute == null) {
             // 写入position数据, 将序号向左移动一位
+            // 或然跟随规则(A, B?) :
+            // 某个值A后面可能存在某个值B，也可能不存在，需要一个标志来表示后面是否跟随着B。
+            //一般的情况下，在A后面放置一个Byte，为0则后面不存在B，为1则后面存在B，或者0则后面存在B，1则后面不存在B。
+            //但这样要浪费一个Byte的空间，其实一个Bit就可以了。
+            //在Lucene中，采取以下的方式：A的值左移一位，空出最后一位，作为标志位，来表示后面是否跟随B，所以在这种情况下，A/2是真正的A原来的值。
             writeVInt(1, proxCode << 1);
         } else {
             BytesRef payload = payloadAttribute.getPayload();
             if (payload != null && payload.length > 0) {
+                // 左移一位,末位置为1,表示后面还跟着其他信息
                 writeVInt(1, (proxCode << 1) | 1);
                 writeVInt(1, payload.length);
                 writeBytes(1, payload.bytes, payload.offset, payload.length);
@@ -127,6 +133,8 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
         final int startOffset = offsetAccum + offsetAttribute.startOffset();
         final int endOffset = offsetAccum + offsetAttribute.endOffset();
         assert startOffset - freqProxPostingsArray.lastOffsets[termID] >= 0;
+        // 存储当前term相对于上一个term的offset的差值, 比如上一个term是{125,131} ,当前term是 {132,139}, 那么存{7,7}, 这样能减少字节数,降低数据量
+        // 第一个存储startOffset, 第二个存储length: 比如一个term的位置是:{125,131} 那么存储{125-116,6}, 116是前一个term的startOffset
         writeVInt(1, startOffset - freqProxPostingsArray.lastOffsets[termID]);
         writeVInt(1, endOffset - startOffset);
         freqProxPostingsArray.lastOffsets[termID] = startOffset;
@@ -153,9 +161,10 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
             postings.lastDocCodes[termID] = docState.docID << 1;
             postings.termFreqs[termID] = getTermFreq();
             if (hasProx) {
-                // fieldState.position : 当前term在field值 里的序号
+                // fieldState.position : 当前term的相对前一个term的位置增量
                 writeProx(termID, fieldState.position);
                 if (hasOffsets) {
+                    // fieldState.offset: 默认值0
                     writeOffsets(termID, fieldState.offset);
                 }
             } else {

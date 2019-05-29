@@ -51,9 +51,7 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
     final int streamCount;
 
     /**
-     * 默认值2* {@link #streamCount}
-     *
-     * @see {@link TermVectorsConsumerPerField#TermVectorsConsumerPerField(FieldInvertState, TermVectorsConsumer, FieldInfo)}
+     * 2* {@link #streamCount}, 一个term对应1或者2个int数据, 一个int对应5个字节
      */
     final int numPostingInt;
 
@@ -175,7 +173,8 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
         // We are first in the chain so we must "intern" the
         // term text into textStart address
         // Get the text & hash of this term.
-        // termID :也就是此term在当前field里的序号
+        // termID :也就是此term在当前field里的序号,  termAtt.getBytesRef() : 也就是term的值,以字节形式展示
+        // byteHash存储term的字节长度和字节数据, length(1,2字节) + body
         int termID = bytesHash.add(termAtt.getBytesRef());
         // 打印数据
         System.out.println("add term=" + termAtt.getBytesRef().utf8ToString() + " doc=" + docState.docID + " termID=" + termID);
@@ -186,24 +185,28 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
             if (numPostingInt + intPool.intUpto > IntBlockPool.INT_BLOCK_SIZE) {
                 intPool.nextBuffer();
             }
-
+            // 一个term对应1或者2个int数据, 一个int对应5个字节
             if (ByteBlockPool.BYTE_BLOCK_SIZE - bytePool.byteUpto < numPostingInt * ByteBlockPool.FIRST_LEVEL_SIZE) {
                 bytePool.nextBuffer();
             }
-
+            // 指向当前最新的buffer
             intUptos = intPool.buffer;
+            // 执行最新buffer里的最新数据位置
             intUptoStart = intPool.intUpto;
+            // 最新buffer里的数据位置+1/2, 一个用于存储freq, 一个存储prox和offset
             intPool.intUpto += streamCount;
 
             // 提交数组里第几个term的在 IntBlockPool#buffers 里的总的数据起始位置
             postingsArray.intStarts[termID] = intUptoStart + intPool.intOffset;
 
+            // 在intPool里分配1/2个位置, 存储的是bytePool里的字节起始位置, 每个int对应5个字节, 第5个存16(0x10)来做分隔开
             for (int i = 0; i < streamCount; i++) {
-                // 获取bytePool 里的buffer的offset
+                // 在bytePool里分配5个字节,返回第一个字节的位置
                 final int upto = bytePool.newSlice(ByteBlockPool.FIRST_LEVEL_SIZE);
                 // intPool的 intUpto+i 指向bytePool的buffers里的offset
                 intUptos[intUptoStart + i] = upto + bytePool.byteOffset;
             }
+            // byteStarts 在term的位置上存储当前term 执行 intPool里当前数据的起始位置, intPool又指向bytePool的数据位置
             postingsArray.byteStarts[termID] = intUptos[intUptoStart];
 
             newTerm(termID);
@@ -261,7 +264,7 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
      * 先写低位再写高位,按顺序, 也就是存储的顺序低位在前,高位在后
      *
      * @param stream
-     * @param i 原始数据向左移动一位后的数据,假设 i = 10000
+     * @param i      原始数据向左移动一位后的数据,假设 i = 10000
      */
     void writeVInt(int stream, int i) {
         assert stream < streamCount;

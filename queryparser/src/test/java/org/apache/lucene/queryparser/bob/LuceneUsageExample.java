@@ -77,6 +77,7 @@ public class LuceneUsageExample {
         // field必须具备索引或者存储中的一个特性,如果两个都不要,那么这个属性就没用了
         FieldType fieldType = new FieldType();
         fieldType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
+        fieldType.setStored(true);
         Field field = new Field("title", "java introduction java asda", fieldType);
         doc.add(field);
         doc.add(new Field("content", "python works well sdfasdf", fieldType));

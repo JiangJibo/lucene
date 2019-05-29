@@ -249,7 +249,7 @@ public final class ByteBlockPool {
         final int upto = byteUpto;
         // byteUpto自增5
         byteUpto += size;
-        // byteUpto自增的最大的位置设值为16
+        // 新分配的字节的最高位填充为16,以此来划分多次分配的片段
         buffer[byteUpto - 1] = 16;
         return upto;
     }
