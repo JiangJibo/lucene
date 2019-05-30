@@ -250,7 +250,7 @@ public final class BytesRefHash {
     public int add(BytesRef bytes) {
         assert bytesStart != null : "Bytesstart is null - not initialized";
         final int length = bytes.length;
-        // final position
+        // final position, 找到此term在hash表中的位置
         final int hashPos = findHash(bytes);
         // 找到此term在ids数组里的位置, 也就是此term在当前field里是否有过处理
         int e = ids[hashPos];
@@ -304,7 +304,7 @@ public final class BytesRefHash {
             assert ids[hashPos] == -1;
             // 在hashPos位置存储term的序号,也就是此term在字典里的序号
             ids[hashPos] = e;
-
+            // 如果处理的count达到ids长度一半,那么倍增ids,hashMask 等
             if (count == hashHalfSize) {
                 rehash(2 * hashSize, true);
             }
@@ -329,7 +329,7 @@ public final class BytesRefHash {
 
         int code = doHash(bytes.bytes, bytes.offset, bytes.length);
 
-        // final position
+        // final position, code%hashMask
         int hashPos = code & hashMask;
         int e = ids[hashPos];
         if (e != -1 && !equals(e, bytes)) {

@@ -455,8 +455,10 @@ final class DefaultIndexingChain extends DocConsumer {
             fp = getOrAddField(fieldName, fieldType, true);
             // 是不是此Field的第一次写入数据
             boolean first = fp.fieldGen != fieldGen;
+            // 写入倒排表
             fp.invert(field, first);
 
+            // 如果这个Field是第一次写入
             if (first) {
                 fields[fieldCount++] = fp;
                 fp.fieldGen = fieldGen;
@@ -841,7 +843,7 @@ final class DefaultIndexingChain extends DocConsumer {
                         throw new IllegalArgumentException("too many tokens for field \"" + field.name() + "\"");
                     }
 
-                    //System.out.println("  term=" + invertState.termAttribute);
+                    System.out.println("  term=" + invertState.termAttribute);
 
                     // If we hit an exception in here, we abort
                     // all buffered documents since the last

@@ -44,7 +44,7 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
     final ByteBlockPool termBytePool;
 
     /**
-     * 每个Field的每个term要存储多少个stream(数据),比如freq是一个prox(位置信息,position)+offset是一个
+     * 每个Field的每个term要存储多少个数据块,比如freq是一个,prox(位置信息,position)+offset是一个,每个数据块在bytePool中对应一个片段
      * {@link TermVectorsConsumerPerField} 要存freq+offset, 所以为 2
      * {@link FreqProxTermsWriterPerField} 的IndexOptions为 {@link IndexOptions#DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS}时是2,否则为1
      */
@@ -168,12 +168,22 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
      * Called once per inverted token.  This is the primary
      * entry point (for first TermsHash); postings use this
      * API.
+     *
+     * 在ByteBlockPool中，文档号和词频(freq)信息是应用或然跟随原则写到一个块中去的，而位置信息(prox)是写入到另一个块中去的，
+     * 对于同一个词，这两块的偏移量保存在IntBlockPool中。因而在IntBlockPool中，每一个词都有两个int，
+     * 0：第0个表示docid +freq在ByteBlockPool中的偏移量，
+     * 1：第1个表示prox在ByteBlockPool中的偏移量。
+     * 在写入docid + freq信息的时候，调用termsHashPerField.writeVInt(0, p.lastDocCode)，
+     * 第一个参数表示向此词的第0个偏移量写入；在写入prox信息的时候，调用termsHashPerField.writeVInt(1, (proxCode<<1)|1)，第一个参数表示向此词的第1个偏移量写入。
+     * CharBlockPool是按照出现的先后顺序保存词(term)
+     * 在TermsHashPerField中，有一个成员变量RawPostingList[] postingsHash，为每一个term分配了一个RawPostingList，将上述三个缓存关联起来。
      */
     void add() throws IOException {
         // We are first in the chain so we must "intern" the
         // term text into textStart address
         // Get the text & hash of this term.
         // termID :也就是此term在当前field里的序号,  termAtt.getBytesRef() : 也就是term的值,以字节形式展示
+        // termID正常是递增的,但是如果这个term之前在此Field里存储过,那么会返回之前的 -(第一次termId + 1)
         // byteHash存储term的字节长度和字节数据, length(1,2字节) + body
         int termID = bytesHash.add(termAtt.getBytesRef());
         // 打印数据
@@ -191,7 +201,7 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
             }
             // 指向当前最新的buffer
             intUptos = intPool.buffer;
-            // 执行最新buffer里的最新数据位置
+            // 指向最新buffer里的最新数据位置
             intUptoStart = intPool.intUpto;
             // 最新buffer里的数据位置+1/2, 一个用于存储freq, 一个存储prox和offset
             intPool.intUpto += streamCount;
@@ -216,6 +226,7 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
         else {
             termID = (-termID) - 1;
             int intStart = postingsArray.intStarts[termID];
+            // 拿到这个term第一次存的intPool的位置
             intUptos = intPool.buffers[intStart >> IntBlockPool.INT_BLOCK_SHIFT];
             intUptoStart = intStart & IntBlockPool.INT_BLOCK_MASK;
             addTerm(termID);
@@ -233,7 +244,10 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
      */
     int[] intUptos;
     /**
-     * 当前数据在 intPool.buffe 中的最大位置,nextBuffer(..)中初始化为0
+     * 当前数据在 intPool.buffer 中的下一个数据可以写入的位置
+     * 当前block里的数据起始位置, intUptoStart+0: freq的写入位置, intUptoStart+1: prox和offset的写入位置
+     * 每写一个数据, intUptos[intUptoStart + stream] 位置的值就会自增1,也就是指向的bytePool里的位置+1
+     * @see #writeByte(int, byte) 的末尾行
      */
     int intUptoStart;
 
@@ -251,6 +265,7 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
             intUptos[intUptoStart + stream] = offset + bytePool.byteOffset;
         }
         bytes[offset] = b;
+        // intUptos intUptoStart + stream 这个位置的元素自增1,这样下次再次写入同一个block时,能自动指向bytePool里的下一个字节,参考此方法的第一行
         (intUptos[intUptoStart + stream])++;
     }
 

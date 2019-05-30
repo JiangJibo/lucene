@@ -76,7 +76,7 @@ public final class IntBlockPool {
      */
     private int bufferUpto = -1;
     /**
-     * Pointer to the current position in head buffer, 当前数据在buffer中的最大位置,nextBuffer(..)中初始化为0
+     * Pointer to the current position in head buffer, 当前数据在buffer中的最大位置+1,也就是能够下次写入的位置,nextBuffer(..)中初始化为0
      */
     public int intUpto = INT_BLOCK_SIZE;
     /**

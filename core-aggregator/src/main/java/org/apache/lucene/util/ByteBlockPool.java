@@ -249,7 +249,7 @@ public final class ByteBlockPool {
         final int upto = byteUpto;
         // byteUpto自增5
         byteUpto += size;
-        // 新分配的字节的最高位填充为16,以此来划分多次分配的片段
+        // 新分配的字节的最高位填充为16,第一级的块用16来作为结束符,第二级17,第三级18
         buffer[byteUpto - 1] = 16;
         return upto;
     }
@@ -267,6 +267,7 @@ public final class ByteBlockPool {
     public final static int[] NEXT_LEVEL_ARRAY = {1, 2, 3, 4, 5, 6, 7, 8, 9, 9};
 
     /**
+     * 每个字节块的大小,第一集用16作为结束符,第二级17,第三级18以此类推
      * An array holding the level sizes for byte slices.
      */
     public final static int[] LEVEL_SIZE_ARRAY = {5, 14, 20, 30, 40, 40, 80, 80, 120, 200};
@@ -279,16 +280,19 @@ public final class ByteBlockPool {
     public final static int FIRST_LEVEL_SIZE = LEVEL_SIZE_ARRAY[0];
 
     /**
+     * 此函数仅仅在upto已经是当前块的结尾的时候方才调用来分配新块。
      * Creates a new byte slice with the given starting size and
      * returns the slices offset in the pool.
      */
     public int allocSlice(final byte[] slice, final int upto) {
-
+        //可根据块的结束符来得到块所在的层次。从而我们可以推断，每个层次的块都有不同的结束符，第1层为16，第2层位17，第3层18，依次类推。
         final int level = slice[upto] & 15;
         final int newLevel = NEXT_LEVEL_ARRAY[level];
+        //从数组总得到下一个层次及下一层块的大小。
         final int newSize = LEVEL_SIZE_ARRAY[newLevel];
 
         // Maybe allocate another block
+        // 如果当前缓存总量不够大，则从DocumentsWriter的freeByteBlocks中分配。
         if (byteUpto > BYTE_BLOCK_SIZE - newSize) {
             nextBuffer();
         }
@@ -299,10 +303,13 @@ public final class ByteBlockPool {
 
         // Copy forward the past 3 bytes (which we are about
         // to overwrite with the forwarding address):
+        //当分配了新的块的时候，需要有一个指针从本块指向下一个块，使得读取此信息的时候，能够在此块读取结束后，到下一个块继续读取。
+        //这个指针需要4个byte，在本块中，除了结束符所占用的一个byte之外，之前的三个byte的数据都应该移到新的块中，从而四个byte连起来形成一个指针。
         buffer[newUpto] = slice[upto - 3];
         buffer[newUpto + 1] = slice[upto - 2];
         buffer[newUpto + 2] = slice[upto - 1];
 
+        // 将偏移量(也即指针)写入到连同结束符在内的四个byte
         // Write forwarding address at end of last slice:
         slice[upto - 3] = (byte)(offset >>> 24);
         slice[upto - 2] = (byte)(offset >>> 16);

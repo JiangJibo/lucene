@@ -71,17 +71,31 @@ public class LuceneUsageExample {
 
     @Test
     public void testInsertDocument() throws IOException {
-        IndexWriter writer = new IndexWriter(new SimpleFSDirectory(Paths.get("D:\\lucene-temp")), new IndexWriterConfig(new StandardAnalyzer()));
-        Document doc = new Document();
+
+        IndexWriterConfig iwc = new IndexWriterConfig(new StandardAnalyzer());
+        iwc.setUseCompoundFile(false);
+
+        IndexWriter writer = new IndexWriter(new SimpleFSDirectory(Paths.get("D:\\lucene-temp")), iwc);
 
         // field必须具备索引或者存储中的一个特性,如果两个都不要,那么这个属性就没用了
         FieldType fieldType = new FieldType();
-        fieldType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
+        fieldType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS);
         fieldType.setStored(true);
-        Field field = new Field("title", "java introduction java asda", fieldType);
-        doc.add(field);
-        doc.add(new Field("content", "python works well sdfasdf", fieldType));
-        writer.addDocument(doc);
+
+        Document doc1 = new Document();
+        Field field = new Field("title", "java introduction asda", fieldType);
+        doc1.add(field);
+        doc1.add(new Field("content", "java python works java well sdfasdf", fieldType));
+        writer.addDocument(doc1);
+
+        Document doc2 = new Document();
+        doc2.add(new Field("content", "java is the best language", fieldType));
+        writer.addDocument(doc2);
+
+        Document doc3 = new Document();
+        doc3.add(new Field("content", "java", fieldType));
+        writer.addDocument(doc3);
+
         //writer.optimize();
         writer.close();
     }
