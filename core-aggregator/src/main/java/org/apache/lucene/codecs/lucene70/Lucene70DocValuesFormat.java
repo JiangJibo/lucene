@@ -122,6 +122,11 @@ public final class Lucene70DocValuesFormat extends DocValuesFormat {
     super("Lucene70");
   }
 
+  /**
+   * @param state
+   * @return
+   * @throws IOException
+   */
   @Override
   public DocValuesConsumer fieldsConsumer(SegmentWriteState state) throws IOException {
     return new Lucene70DocValuesConsumer(state, DATA_CODEC, DATA_EXTENSION, META_CODEC, META_EXTENSION);

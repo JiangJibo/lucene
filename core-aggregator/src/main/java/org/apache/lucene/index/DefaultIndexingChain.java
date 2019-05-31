@@ -101,8 +101,7 @@ final class DefaultIndexingChain extends DocConsumer {
         for (int i = 0; i < indexSort.getSort().length; i++) {
             SortField sortField = indexSort.getSort()[i];
             PerField perField = getPerField(sortField.getField());
-            if (perField != null && perField.docValuesWriter != null &&
-                finishedDocValues.contains(perField.fieldInfo.name) == false) {
+            if (perField != null && perField.docValuesWriter != null && finishedDocValues.contains(perField.fieldInfo.name) == false) {
                 perField.docValuesWriter.finish(state.segmentInfo.maxDoc());
                 Sorter.DocComparator cmp = perField.docValuesWriter.getDocComparator(state.segmentInfo.maxDoc(), sortField);
                 comparators.add(cmp);
@@ -246,8 +245,9 @@ final class DefaultIndexingChain extends DocConsumer {
                                 "segment=" + state.segmentInfo + ": field=\"" + perField.fieldInfo.name + "\" has no docValues but wrote them");
                         }
                         if (dvConsumer == null) {
-                            // lazy init
+                            // lazy init , Lucene70DocValuesFormat
                             DocValuesFormat fmt = state.segmentInfo.getCodec().docValuesFormat();
+                            // Lucene70DocValuesConsumer
                             dvConsumer = fmt.fieldsConsumer(state);
                         }
 

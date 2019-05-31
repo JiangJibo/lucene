@@ -164,6 +164,9 @@ public class Lucene70Codec extends Codec {
   }
 
   private final PostingsFormat defaultFormat = PostingsFormat.forName("Lucene50");
+  /**
+   * @see Lucene70DocValuesFormat
+   */
   private final DocValuesFormat defaultDVFormat = DocValuesFormat.forName("Lucene70");
 
   private final NormsFormat normsFormat = new Lucene70NormsFormat();

@@ -9,8 +9,10 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.SortedNumericDocValuesField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -23,6 +25,7 @@ import org.apache.lucene.search.Sort;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.store.SimpleFSDirectory;
+import org.apache.lucene.util.BytesRef;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -73,27 +76,35 @@ public class LuceneUsageExample {
     public void testInsertDocument() throws IOException {
 
         IndexWriterConfig iwc = new IndexWriterConfig(new StandardAnalyzer());
-        iwc.setUseCompoundFile(false);
+        //iwc.setUseCompoundFile(false);
 
         IndexWriter writer = new IndexWriter(new SimpleFSDirectory(Paths.get("D:\\lucene-temp")), iwc);
 
         // field必须具备索引或者存储中的一个特性,如果两个都不要,那么这个属性就没用了
-        FieldType fieldType = new FieldType();
-        fieldType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS);
-        fieldType.setStored(true);
+        FieldType ft1 = new FieldType();
+        ft1.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS);
+        ft1.setStored(true);
+
+        FieldType ft2 = new FieldType();
+        ft2.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS);
+        ft2.setStored(true);
+        ft2.setDocValuesType(DocValuesType.NUMERIC);
 
         Document doc1 = new Document();
-        Field field = new Field("title", "java introduction asda", fieldType);
+        Field field = new Field("title", "java introduction asda", ft1);
         doc1.add(field);
-        doc1.add(new Field("content", "java python works java well sdfasdf", fieldType));
+        doc1.add(new Field("content", "java python works java well sdfasdf", ft1));
         writer.addDocument(doc1);
 
         Document doc2 = new Document();
-        doc2.add(new Field("content", "java is the best language", fieldType));
+        doc2.add(new Field("content", "java is the best language", ft1));
+        Field f2 = new SortedNumericDocValuesField("number", 12);
+        doc2.add(f2);
+
         writer.addDocument(doc2);
 
         Document doc3 = new Document();
-        doc3.add(new Field("content", "java", fieldType));
+        doc3.add(new Field("content", "java", ft1));
         writer.addDocument(doc3);
 
         //writer.optimize();

@@ -261,13 +261,15 @@ public final class ByteBlockPool {
     // bytes, next slice is 14 bytes, etc.
 
     /**
+     * 跳跃表的层级
      * An array holding the offset into the {@link ByteBlockPool#LEVEL_SIZE_ARRAY}
      * to quickly navigate to the next slice level.
      */
     public final static int[] NEXT_LEVEL_ARRAY = {1, 2, 3, 4, 5, 6, 7, 8, 9, 9};
 
     /**
-     * 每个字节块的大小,第一集用16作为结束符,第二级17,第三级18以此类推
+     * 跳跃表的相应层次的长度
+     * 每个字节块的大小,每一层用(15+级别)作为结束符
      * An array holding the level sizes for byte slices.
      */
     public final static int[] LEVEL_SIZE_ARRAY = {5, 14, 20, 30, 40, 40, 80, 80, 120, 200};
@@ -311,10 +313,15 @@ public final class ByteBlockPool {
 
         // 将偏移量(也即指针)写入到连同结束符在内的四个byte
         // Write forwarding address at end of last slice:
+        // 保留int最高8位
         slice[upto - 3] = (byte)(offset >>> 24);
+        // 保留int的16-24位
         slice[upto - 2] = (byte)(offset >>> 16);
+        // 保留int的8-16位
         slice[upto - 1] = (byte)(offset >>> 8);
+        // 保留int的0-8位
         slice[upto] = (byte)offset;
+        // 上述4个字节拼接成一个int, 来指向此块扩容的后半截的起始序号
 
         // Write new level:
         buffer[byteUpto - 1] = (byte)(16 | newLevel);

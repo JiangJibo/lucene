@@ -41,6 +41,10 @@ import java.util.ServiceConfigurationError;
  * @lucene.internal
  */
 public final class SPIClassIterator<S> implements Iterator<Class<? extends S>> {
+
+  /**
+   * SPI目录
+   */
   private static final String META_INF_SERVICES = "META-INF/services/";
 
   private final Class<S> clazz;

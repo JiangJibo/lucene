@@ -215,20 +215,30 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
             // Term not yet seen in the current doc but previously
             // seen in other doc(s) since the last flush
 
-            // Now that we know doc freq for previous doc,
+            // Now that we know doc freq for previous doc, 现在我们可以正常处理此上一个doc里的此term了
+            // 每个term至少是在第二次doc里出现才会写入freqs数据,因为在第一个doc里出现是还不知道此doc有没有解析完,还会不会再次出现
             // write it & lastDocCode
-            // 如果当前term在当前doc是第一次出现, lastDocCodes正常是2的倍数,将其+1
+            // 如果当前term在当前doc是第一次出现,且在之前的doc里也只出现过一次, 也就是此term的freq还没有写入数据,
+            // lastDocCodes正常是2*docID,将其末位置为1表示此term在此docID里出现一次, 因为只有一个doc,后续不会有数据,所以末位为1
+            // 如果当前term在上一个doc里只出现了一次,末位+1的形式来表示,和出现多次的不一样, 此规则只适用于第一个doc
+            // @see newTerm时将 postings.termFreqs[termID] 设置为1
             if (1 == postings.termFreqs[termID]) {
                 writeVInt(0, postings.lastDocCodes[termID] | 1);
-            } else {
+            }
+            // 此term在之前的doc里不止出现一次
+            else {
+                // 记录此term出现的上一个docID, 实际是上一个docID相对于上上一个docID的差值 的2倍, 所以末位为0
                 writeVInt(0, postings.lastDocCodes[termID]);
+                // 记录此term在上一个doc里出现的次数
                 writeVInt(0, postings.termFreqs[termID]);
             }
 
-            // Init freq for the current document
+            // Init freq for the current document, 初始化当前doc的freq, 也就是1
             postings.termFreqs[termID] = getTermFreq();
             fieldState.maxTermFrequency = Math.max(postings.termFreqs[termID], fieldState.maxTermFrequency);
+            // 设置当前term两个doc之间的id差值
             postings.lastDocCodes[termID] = (docState.docID - postings.lastDocIDs[termID]) << 1;
+            // 更新此term的最后出现docID, 也就是当前doc是此term的最后出现的doc了
             postings.lastDocIDs[termID] = docState.docID;
             if (hasProx) {
                 writeProx(termID, fieldState.position);
@@ -241,10 +251,11 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
             }
             fieldState.uniqueTermCount++;
         }
-        // 此term在当前field里第N(N>1)次出现
+        // 此term只在当前field里出现,且是第N(N>1)次出现
         else {
             // freq+1, 在处理当前doc时不知道某个term的freq,只有处理下一个doc时,才会写入这个doc的term的freq数据
             postings.termFreqs[termID] = Math.addExact(postings.termFreqs[termID], getTermFreq());
+            // 更新此term在此Field中的最大出现次数
             fieldState.maxTermFrequency = Math.max(fieldState.maxTermFrequency, postings.termFreqs[termID]);
             if (hasProx) {
                 // 写位置时写入此term的当前position和上一次position的差值

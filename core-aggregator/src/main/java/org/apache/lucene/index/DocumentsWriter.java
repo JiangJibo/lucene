@@ -547,6 +547,14 @@ final class DocumentsWriter implements Closeable, Accountable {
         return seqNo;
     }
 
+    /**
+     * 将某个线程的数据同步至磁盘
+     *
+     * @param flushingDWPT
+     * @return
+     * @throws IOException
+     * @throws AbortingException
+     */
     private boolean doFlush(DocumentsWriterPerThread flushingDWPT) throws IOException, AbortingException {
         boolean hasEvents = false;
         while (flushingDWPT != null) {
@@ -554,8 +562,7 @@ final class DocumentsWriter implements Closeable, Accountable {
             boolean success = false;
             SegmentFlushTicket ticket = null;
             try {
-                assert currentFullFlushDelQueue == null
-                    || flushingDWPT.deleteQueue == currentFullFlushDelQueue : "expected: "
+                assert currentFullFlushDelQueue == null || flushingDWPT.deleteQueue == currentFullFlushDelQueue : "expected: "
                     + currentFullFlushDelQueue + "but was: " + flushingDWPT.deleteQueue
                     + " " + flushControl.isFullFlush();
                 /*
@@ -566,6 +573,9 @@ final class DocumentsWriter implements Closeable, Accountable {
                  * deletes mark a certain point in time where we took a DWPT out of
                  * rotation and freeze the global deletes.
                  *
+                 * A线程开始Flush后,B线程不必等到A结束时才开始Flush, 但是A必须先结束, 如果B到达结束点但是A还没有结束,那么必须在结束点等待A提交结束后再提交结束
+                 *
+                 * A线程先启动,B线程后启动,如果B先结束,那么必须在结束前等待A结束后才结束,否则可能会丢失A的删除操作
                  * Example: A flush 'A' starts and freezes the global deletes, then
                  * flush 'B' starts and freezes all deletes occurred since 'A' has
                  * started. if 'B' finishes before 'A' we need to wait until 'A' is done
@@ -574,11 +584,12 @@ final class DocumentsWriter implements Closeable, Accountable {
                  */
                 try {
                     // Each flush is assigned a ticket in the order they acquire the ticketQueue lock
+                    // 每个线程的提交都算是一个ticket, 用synchronized方法来保证他们在queue里的顺序
                     ticket = ticketQueue.addFlushTicket(flushingDWPT);
                     final int flushingDocsInRam = flushingDWPT.getNumDocsInRAM();
                     boolean dwptSuccess = false;
                     try {
-                        // flush concurrently without locking
+                        // flush concurrently without locking,并发的flush
                         final FlushedSegment newSegment = flushingDWPT.flush();
                         ticketQueue.addSegment(ticket, newSegment);
                         dwptSuccess = true;

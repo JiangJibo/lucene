@@ -450,14 +450,18 @@ class DocumentsWriterPerThread {
     }
 
     /**
+     * flush所有的待处理的docs进一个新的segment里
      * Flush all pending docs to a new segment
      */
     FlushedSegment flush() throws IOException, AbortingException {
         assert numDocsInRAM > 0;
         assert deleteSlice.isEmpty() : "all deletes must be applied in prepareFlush";
+        // 设置segment里的doc总数
         segmentInfo.setMaxDoc(numDocsInRAM);
+
         final SegmentWriteState flushState = new SegmentWriteState(infoStream, directory, segmentInfo, fieldInfos.finish(),
             pendingUpdates, new IOContext(new FlushInfo(numDocsInRAM, bytesUsed())));
+        // 总共用了多少MB内存空间
         final double startMBUsed = bytesUsed() / 1024. / 1024.;
 
         // Apply delete-by-docID now (delete-byDocID only
