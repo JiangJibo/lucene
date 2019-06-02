@@ -459,6 +459,7 @@ class DocumentsWriterPerThread {
         // 设置segment里的doc总数
         segmentInfo.setMaxDoc(numDocsInRAM);
 
+        // 组装刷新所需的所有数据
         final SegmentWriteState flushState = new SegmentWriteState(infoStream, directory, segmentInfo, fieldInfos.finish(),
             pendingUpdates, new IOContext(new FlushInfo(numDocsInRAM, bytesUsed())));
         // 总共用了多少MB内存空间
@@ -491,6 +492,7 @@ class DocumentsWriterPerThread {
         }
         final Sorter.DocMap sortMap;
         try {
+            // 刷新
             sortMap = consumer.flush(flushState);
             // We clear this here because we already resolved them (private to this segment) when writing postings:
             pendingUpdates.clearDeleteTerms();

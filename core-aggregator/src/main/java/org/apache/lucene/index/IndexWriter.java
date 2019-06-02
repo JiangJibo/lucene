@@ -3665,6 +3665,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
             synchronized (fullFlushLock) {
                 boolean flushSuccess = false;
                 try {
+                    // flush所有线程
                     long seqNo = docWriter.flushAllThreads();
                     if (seqNo < 0) {
                         seqNo = -seqNo;

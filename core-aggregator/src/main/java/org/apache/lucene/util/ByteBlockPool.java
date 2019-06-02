@@ -300,6 +300,7 @@ public final class ByteBlockPool {
         }
 
         final int newUpto = byteUpto;
+        //
         final int offset = newUpto + byteOffset;
         byteUpto += newSize;
 
@@ -320,10 +321,12 @@ public final class ByteBlockPool {
         // 保留int的8-16位
         slice[upto - 1] = (byte)(offset >>> 8);
         // 保留int的0-8位
+        // 在原先的块结束符16的位置放下一个块的起始位置
         slice[upto] = (byte)offset;
         // 上述4个字节拼接成一个int, 来指向此块扩容的后半截的起始序号
 
         // Write new level:
+        // 在新的块的末尾写入当前块的级别, 17，18,19 ......
         buffer[byteUpto - 1] = (byte)(16 | newLevel);
 
         return newUpto + 3;

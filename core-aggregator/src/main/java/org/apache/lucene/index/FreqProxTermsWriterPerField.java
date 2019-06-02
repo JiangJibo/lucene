@@ -220,7 +220,7 @@ final class FreqProxTermsWriterPerField extends TermsHashPerField {
             // write it & lastDocCode
             // 如果当前term在当前doc是第一次出现,且在之前的doc里也只出现过一次, 也就是此term的freq还没有写入数据,
             // lastDocCodes正常是2*docID,将其末位置为1表示此term在此docID里出现一次, 因为只有一个doc,后续不会有数据,所以末位为1
-            // 如果当前term在上一个doc里只出现了一次,末位+1的形式来表示,和出现多次的不一样, 此规则只适用于第一个doc
+            // 如果当前term在上一个doc里只出现了一次,末位+1的形式来表示,和出现多次的不一样
             // @see newTerm时将 postings.termFreqs[termID] 设置为1
             if (1 == postings.termFreqs[termID]) {
                 writeVInt(0, postings.lastDocCodes[termID] | 1);
