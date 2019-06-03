@@ -76,7 +76,7 @@ public class LuceneUsageExample {
     public void testInsertDocument() throws IOException {
 
         IndexWriterConfig iwc = new IndexWriterConfig(new StandardAnalyzer());
-        //iwc.setUseCompoundFile(false);
+        iwc.setUseCompoundFile(false);
 
         IndexWriter writer = new IndexWriter(new SimpleFSDirectory(Paths.get("D:\\lucene-temp")), iwc);
 

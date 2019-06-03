@@ -29,8 +29,17 @@ class ParallelPostingsArray {
   final static int BYTES_PER_POSTING = 3 * Integer.BYTES;
 
   final int size;
+  /**
+   * 本来是用来记录term本身在ByteBlockPool中的起始位置的，建索引的时候没有用到这个字段。
+   */
   final int[] textStarts;
+  /**
+   * 提交数组里第几个term的在 IntBlockPool#buffers 里的总的数据起始位置
+   */
   final int[] intStarts;
+  /**
+   * 在term的位置上存储当前term 指向 intPool里当前数据的起始位置, intPool又指向bytePool的数据位置
+   */
   final int[] byteStarts;
 
   ParallelPostingsArray(final int size) {

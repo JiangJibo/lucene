@@ -358,13 +358,14 @@ public final class BlockTreeTermsWriter extends FieldsConsumer {
             TermsWriter termsWriter = new TermsWriter(fieldInfos.fieldInfo(field));
             while (true) {
                 BytesRef term = termsEnum.next();
-                //if (DEBUG) System.out.println("BTTW: next term " + term);
+                if (true) {
+                    System.out.println("BTTW: next term " + term);
+                }
 
                 if (term == null) {
                     break;
                 }
 
-                //if (DEBUG) System.out.println("write field=" + fieldInfo.name + " term=" + brToString(term));
                 System.out.println("write field=" + field + " term=" + brToString(term));
                 termsWriter.write(term, termsEnum);
             }
@@ -920,6 +921,7 @@ public final class BlockTreeTermsWriter extends FieldsConsumer {
                 System.out.println("BTTW: write term=" + brToString(text) + " prefixStarts=" + Arrays.toString(tmp) + " pending.size()=" + pending.size());
             }
 
+            // 确认此term是否出现过,如果出现过则搜集freq,prox,offset信息
             BlockTermState state = postingsWriter.writeTerm(text, termsEnum, docsSeen);
             if (state != null) {
 

@@ -59,6 +59,9 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
 
     final BytesRefHash bytesHash;
 
+    /**
+     * 存储termID在 {@link #intPool} 和 {@link #bytePool} 中的数据位置
+     */
     ParallelPostingsArray postingsArray;
     private final Counter bytesUsed;
 
@@ -100,14 +103,19 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
         }
     }
 
+    /**
+     * 初始化读取freq,porx,offset的读取器
+     *
+     * @param reader
+     * @param termID
+     * @param stream
+     */
     public void initReader(ByteSliceReader reader, int termID, int stream) {
         assert stream < streamCount;
         int intStart = postingsArray.intStarts[termID];
         final int[] ints = intPool.buffers[intStart >> IntBlockPool.INT_BLOCK_SHIFT];
         final int upto = intStart & IntBlockPool.INT_BLOCK_MASK;
-        reader.init(bytePool,
-            postingsArray.byteStarts[termID] + stream * ByteBlockPool.FIRST_LEVEL_SIZE,
-            ints[upto + stream]);
+        reader.init(bytePool, postingsArray.byteStarts[termID] + stream * ByteBlockPool.FIRST_LEVEL_SIZE, ints[upto + stream]);
     }
 
     int[] sortedTermIDs;
@@ -175,8 +183,6 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
      * 1：第1个表示prox在ByteBlockPool中的偏移量。
      * 在写入docid + freq信息的时候，调用termsHashPerField.writeVInt(0, p.lastDocCode)，
      * 第一个参数表示向此词的第0个偏移量写入；在写入prox信息的时候，调用termsHashPerField.writeVInt(1, (proxCode<<1)|1)，第一个参数表示向此词的第1个偏移量写入。
-     * CharBlockPool是按照出现的先后顺序保存词(term)
-     * 在TermsHashPerField中，有一个成员变量RawPostingList[] postingsHash，为每一个term分配了一个RawPostingList，将上述三个缓存关联起来。
      */
     void add() throws IOException {
         // We are first in the chain so we must "intern" the
@@ -247,6 +253,7 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
      * 当前数据在 intPool.buffer 中的下一个数据可以写入的位置
      * 当前block里的数据起始位置, intUptoStart+0: freq的写入位置, intUptoStart+1: prox和offset的写入位置
      * 每写一个数据, intUptos[intUptoStart + stream] 位置的值就会自增1,也就是指向的bytePool里的位置+1
+     *
      * @see #writeByte(int, byte) 的末尾行
      */
     int intUptoStart;

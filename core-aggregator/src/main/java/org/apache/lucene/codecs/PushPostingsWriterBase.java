@@ -139,12 +139,14 @@ public abstract class PushPostingsWriterBase extends PostingsWriterBase {
     @Override
     public final BlockTermState writeTerm(BytesRef term, TermsEnum termsEnum, FixedBitSet docsSeen) throws IOException {
         startTerm();
+        // FreqProxFields#FreqProxTermsEnum
         postingsEnum = termsEnum.postings(postingsEnum, enumFlags);
         assert postingsEnum != null;
 
         int docFreq = 0;
         long totalTermFreq = 0;
         while (true) {
+            // 读取这个term的第一个docID
             int docID = postingsEnum.nextDoc();
             if (docID == PostingsEnum.NO_MORE_DOCS) {
                 break;
