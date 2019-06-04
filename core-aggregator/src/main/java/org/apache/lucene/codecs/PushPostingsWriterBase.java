@@ -138,7 +138,10 @@ public abstract class PushPostingsWriterBase extends PostingsWriterBase {
 
     @Override
     public final BlockTermState writeTerm(BytesRef term, TermsEnum termsEnum, FixedBitSet docsSeen) throws IOException {
+
+        // 开始处理这个term, 对应着finishTerm(state);
         startTerm();
+
         // FreqProxFields#FreqProxTermsEnum
         postingsEnum = termsEnum.postings(postingsEnum, enumFlags);
         assert postingsEnum != null;
@@ -178,7 +181,7 @@ public abstract class PushPostingsWriterBase extends PostingsWriterBase {
                     addPosition(pos, payload, startOffset, endOffset);
                 }
             }
-
+            // 当前term写结束了
             finishDoc();
         }
 
@@ -188,6 +191,8 @@ public abstract class PushPostingsWriterBase extends PostingsWriterBase {
             BlockTermState state = newTermState();
             state.docFreq = docFreq;
             state.totalTermFreq = writeFreqs ? totalTermFreq : -1;
+
+            // 结束处理这个term, 对应着startTerm()
             finishTerm(state);
             return state;
         }
