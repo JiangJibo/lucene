@@ -210,6 +210,10 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
         }
     }
 
+    /**
+     * 开始处理某个term, 这个term可能出现在多个doc中, 因此其与 {@link #finishTerm(BlockTermState)} 之间夹杂这多次的
+     * {@link #startDoc(int, int)} 和 {@link #finishDoc()}
+     */
     @Override
     public void startTerm() {
         docStartFP = docOut.getFilePointer();
@@ -224,6 +228,13 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
         skipWriter.resetSkip();
     }
 
+    /**
+     * 开始处理term出现的一个doc,也就是一个term出现在N个doc中，此方法会执行N次
+     *
+     * @param docID
+     * @param termDocFreq
+     * @throws IOException
+     */
     @Override
     public void startDoc(int docID, int termDocFreq) throws IOException {
         // Have collected a block of docs, and get a new doc.
@@ -248,6 +259,7 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
         docBufferUpto++;
         docCount++;
 
+        // 如果积累的doc到了128个
         if (docBufferUpto == BLOCK_SIZE) {
             forUtil.writeBlock(docDeltaBuffer, encoded, docOut);
             if (writeFreqs) {
@@ -296,7 +308,7 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
             offsetLengthBuffer[posBufferUpto] = endOffset - startOffset;
             lastStartOffset = startOffset;
         }
-        // 缓冲term数+1
+        // 此term出现在不同的doc的情况加1
         posBufferUpto++;
         lastPosition = position;
 
@@ -318,6 +330,11 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
         }
     }
 
+    /**
+     * 结束处理term出现的一个doc,也就是一个term出现在N个doc中，此方法会执行N次
+     *
+     * @throws IOException
+     */
     @Override
     public void finishDoc() throws IOException {
         // Since we don't know df for current term, we had to buffer
@@ -338,6 +355,8 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
     }
 
     /**
+     * 结束处理某个term, 这个term可能出现在多个doc中, 因此其与 {@link #startTerm()} 之间夹杂这多次的
+     * {@link #startDoc(int, int)} 和 {@link #finishDoc()}
      * Called when we are done adding docs to this term
      */
     @Override
