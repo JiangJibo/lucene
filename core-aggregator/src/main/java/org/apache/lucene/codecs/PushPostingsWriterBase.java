@@ -160,6 +160,7 @@ public abstract class PushPostingsWriterBase extends PostingsWriterBase {
             } else {
                 freq = -1;
             }
+            // 处理这个docID和相应的freq
             startDoc(docID, freq);
 
             if (writePositions) {

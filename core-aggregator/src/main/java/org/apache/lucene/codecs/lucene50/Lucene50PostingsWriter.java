@@ -105,21 +105,27 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
     public Lucene50PostingsWriter(SegmentWriteState state) throws IOException {
         final float acceptableOverheadRatio = PackedInts.COMPACT;
 
+        // 生成文件名称, .doc后缀, Filename extension for document number, frequencies, and skip data. 也就是存储docID, freqs和跳跃数据
         String docFileName = IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, Lucene50PostingsFormat.DOC_EXTENSION);
+        // 创建针对这个文件的输出流
         docOut = state.directory.createOutput(docFileName, state.context);
         IndexOutput posOut = null;
         IndexOutput payOut = null;
         boolean success = false;
         try {
-            CodecUtil.writeIndexHeader(docOut, DOC_CODEC, VERSION_CURRENT,
-                state.segmentInfo.getId(), state.segmentSuffix);
+            // 写入文件元数据
+            CodecUtil.writeIndexHeader(docOut, DOC_CODEC, VERSION_CURRENT, state.segmentInfo.getId(), state.segmentSuffix);
+
             forUtil = new ForUtil(acceptableOverheadRatio, docOut);
             if (state.fieldInfos.hasProx()) {
                 posDeltaBuffer = new int[MAX_DATA_SIZE];
+
+                // 创建position的数据文件， .pos后缀结尾
                 String posFileName = IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, Lucene50PostingsFormat.POS_EXTENSION);
                 posOut = state.directory.createOutput(posFileName, state.context);
-                CodecUtil.writeIndexHeader(posOut, POS_CODEC, VERSION_CURRENT,
-                    state.segmentInfo.getId(), state.segmentSuffix);
+
+                // 写入position文件的元数据
+                CodecUtil.writeIndexHeader(posOut, POS_CODEC, VERSION_CURRENT, state.segmentInfo.getId(), state.segmentSuffix);
 
                 if (state.fieldInfos.hasPayloads()) {
                     payloadBytes = new byte[128];
@@ -137,11 +143,15 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
                     offsetLengthBuffer = null;
                 }
 
+                // 如果有payload或者offset
                 if (state.fieldInfos.hasPayloads() || state.fieldInfos.hasOffsets()) {
+
+                    // 创建存储payload和offset相关数据的文件,以 .pay 后缀结尾
                     String payFileName = IndexFileNames.segmentFileName(state.segmentInfo.name, state.segmentSuffix, Lucene50PostingsFormat.PAY_EXTENSION);
                     payOut = state.directory.createOutput(payFileName, state.context);
-                    CodecUtil.writeIndexHeader(payOut, PAY_CODEC, VERSION_CURRENT,
-                        state.segmentInfo.getId(), state.segmentSuffix);
+
+                    // 写入pay文件的元数据
+                    CodecUtil.writeIndexHeader(payOut, PAY_CODEC, VERSION_CURRENT, state.segmentInfo.getId(), state.segmentSuffix);
                 }
             } else {
                 posDeltaBuffer = null;
@@ -223,6 +233,7 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
             skipWriter.bufferSkip(lastBlockDocID, docCount, lastBlockPosFP, lastBlockPayFP, lastBlockPosBufferUpto, lastBlockPayloadByteUpto);
         }
 
+        // 此term的当前docID和上一个docID的差值
         final int docDelta = docID - lastDocID;
 
         if (docID < 0 || (docCount > 0 && docDelta <= 0)) {
