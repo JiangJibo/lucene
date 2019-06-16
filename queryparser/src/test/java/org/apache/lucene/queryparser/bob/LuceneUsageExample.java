@@ -3,6 +3,8 @@ package org.apache.lucene.queryparser.bob;
 import java.io.IOException;
 import java.nio.file.Paths;
 
+import javax.sound.sampled.SourceDataLine;
+
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.payloads.DelimitedPayloadTokenFilter;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -14,6 +16,8 @@ import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.IndexOptions;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexReaderContext;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.queryparser.classic.ParseException;
@@ -109,6 +113,14 @@ public class LuceneUsageExample {
 
         //writer.optimize();
         writer.close();
+    }
+
+    @Test
+    public void testReadDocument() throws IOException {
+        // BaseCompositeReader, StandardDirectoryReader
+        IndexReader indexReader = DirectoryReader.open(new SimpleFSDirectory(Paths.get("D:\\lucene-temp")));
+        Document document = indexReader.document(1);
+        System.out.println(document.getField("content"));
     }
 
 }

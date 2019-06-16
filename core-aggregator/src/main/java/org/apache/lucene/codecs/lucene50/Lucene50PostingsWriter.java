@@ -69,6 +69,9 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
 
     final int[] docDeltaBuffer;
     final int[] freqBuffer;
+    /**
+     * 当前term中缓冲的doc个数
+     */
     private int docBufferUpto;
 
     final int[] posDeltaBuffer;
@@ -94,6 +97,9 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
     private int lastStartOffset;
     private int docCount;
 
+    /**
+     * new byte[128*4]
+     */
     final byte[] encoded;
 
     private final ForUtil forUtil;
@@ -216,10 +222,13 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
      */
     @Override
     public void startTerm() {
+        // 获取.doc写入的第一个字节位置, docId和freq写入同一个文件
         docStartFP = docOut.getFilePointer();
         if (writePositions) {
+            // 获取.pos写入的第一个字节位置
             posStartFP = posOut.getFilePointer();
             if (writePayloads || writeOffsets) {
+                // 获取.pay写入的第一个字节位置, payload和offset写入一个文件
                 payStartFP = payOut.getFilePointer();
             }
         }
@@ -240,6 +249,7 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
         // Have collected a block of docs, and get a new doc.
         // Should write skip data as well as postings list for
         // current block.
+        // docBufferUpto 在finishTerm时会重置为0
         if (lastBlockDocID != -1 && docBufferUpto == 0) {
             skipWriter.bufferSkip(lastBlockDocID, docCount, lastBlockPosFP, lastBlockPayFP, lastBlockPosBufferUpto, lastBlockPayloadByteUpto);
         }
@@ -251,6 +261,7 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
             throw new CorruptIndexException("docs out of order (" + docID + " <= " + lastDocID + " )", docOut);
         }
 
+        // docID自增的，所以记录增量
         docDeltaBuffer[docBufferUpto] = docDelta;
         if (writeFreqs) {
             freqBuffer[docBufferUpto] = termDocFreq;
@@ -259,10 +270,12 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
         docBufferUpto++;
         docCount++;
 
-        // 如果积累的doc到了128个
+        // 如果积累的doc到了128个, .doc文件写入一块数据
         if (docBufferUpto == BLOCK_SIZE) {
+            // 写入docID增量
             forUtil.writeBlock(docDeltaBuffer, encoded, docOut);
             if (writeFreqs) {
+                // 写入对应doc位置的freq
                 forUtil.writeBlock(freqBuffer, encoded, docOut);
             }
             // NOTE: don't set docBufferUpto back to 0 here;
@@ -283,7 +296,7 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
         if (position < 0) {
             throw new CorruptIndexException("position=" + position + " is < 0", docOut);
         }
-        // 待处理的增量缓冲
+        // 待处理的增量缓冲, 每个doc里位置信息会有一次重置
         posDeltaBuffer[posBufferUpto] = position - lastPosition;
         if (writePayloads) {
             if (payload == null || payload.length == 0) {
@@ -294,6 +307,7 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
                 if (payloadByteUpto + payload.length > payloadBytes.length) {
                     payloadBytes = ArrayUtil.grow(payloadBytes, payloadByteUpto + payload.length);
                 }
+                // 拷贝payload数据,更新payload的指向位置
                 System.arraycopy(payload.bytes, payload.offset, payloadBytes, payloadByteUpto, payload.length);
                 payloadByteUpto += payload.length;
             }
@@ -340,7 +354,9 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
         // Since we don't know df for current term, we had to buffer
         // those skip data for each block, and when a new doc comes,
         // write them to skip file.
+        // 如果当前term出现在至少128个doc时
         if (docBufferUpto == BLOCK_SIZE) {
+            // 也就是数据已经写入了一个block, 更新lastBlockDocID
             lastBlockDocID = lastDocID;
             if (posOut != null) {
                 if (payOut != null) {
@@ -350,6 +366,7 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
                 lastBlockPosBufferUpto = posBufferUpto;
                 lastBlockPayloadByteUpto = payloadByteUpto;
             }
+            // 数据已经写入一个block, 重置缓冲的doc数量
             docBufferUpto = 0;
         }
     }
@@ -375,7 +392,9 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
             singletonDocID = docDeltaBuffer[0];
         } else {
             singletonDocID = -1;
+
             // vInt encode the remaining doc deltas and freqs:
+            // 剩余的doc数量肯定少于128个,所以没有写成一个块,没有用压缩,直接使用vint的形式来存储数据
             for (int i = 0; i < docBufferUpto; i++) {
                 final int docDelta = docDeltaBuffer[i];
                 final int freq = freqBuffer[i];
@@ -461,6 +480,7 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
             skipOffset = -1;
         }
 
+        // 当前nterm在.doc, .pos, .pay 文件中的数据的起始位置
         state.docStartFP = docStartFP;
         state.posStartFP = posStartFP;
         state.payStartFP = payStartFP;
