@@ -249,7 +249,7 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
         // Have collected a block of docs, and get a new doc.
         // Should write skip data as well as postings list for
         // current block.
-        // docBufferUpto 在finishTerm时会重置为0
+        // 上一个docID 的block存在 && 没有缓冲的docID , 也就是刚刚缓冲满128,写入了一个块,需要设置跳跃表信息
         if (lastBlockDocID != -1 && docBufferUpto == 0) {
             skipWriter.bufferSkip(lastBlockDocID, docCount, lastBlockPosFP, lastBlockPayFP, lastBlockPosBufferUpto, lastBlockPayloadByteUpto);
         }
@@ -322,11 +322,11 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
             offsetLengthBuffer[posBufferUpto] = endOffset - startOffset;
             lastStartOffset = startOffset;
         }
-        // 此term出现在不同的doc的情况加1
+        // 此term出现在所有的的doc的情况加1, 一个doc中出现多也算
         posBufferUpto++;
         lastPosition = position;
 
-        // 如果缓冲数达到上限, 128
+        // 如果 position 缓冲数达到上限, 128, 写入pos和pay文件
         if (posBufferUpto == BLOCK_SIZE) {
             forUtil.writeBlock(posDeltaBuffer, encoded, posOut);
 
@@ -354,7 +354,7 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
         // Since we don't know df for current term, we had to buffer
         // those skip data for each block, and when a new doc comes,
         // write them to skip file.
-        // 如果当前term出现在至少128个doc时
+        // 如果当前term出现在至少128个doc时, docID 缓冲了128个
         if (docBufferUpto == BLOCK_SIZE) {
             // 也就是数据已经写入了一个block, 更新lastBlockDocID
             lastBlockDocID = lastDocID;
@@ -409,12 +409,14 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
             }
         }
 
+        // 最后的position block 的offset
         final long lastPosBlockOffset;
 
         if (writePositions) {
             // totalTermFreq is just total number of positions(or payloads, or offsets)
             // associated with current term.
             assert state.totalTermFreq != -1;
+            // 如果此term出现在超过128个doc中, 才会有lastPosBlockOffset
             if (state.totalTermFreq > BLOCK_SIZE) {
                 // record file offset for last pos in last block
                 lastPosBlockOffset = posOut.getFilePointer() - posStartFP;

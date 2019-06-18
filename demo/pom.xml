@@ -36,6 +36,13 @@
             <artifactId>lucene-test-framework</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>com.taobao.sharepassword</groupId>
+            <artifactId>sharepassword-client</artifactId>
+            <version>1.0.2</version>
+        </dependency>
+
     </dependencies>
 
 
