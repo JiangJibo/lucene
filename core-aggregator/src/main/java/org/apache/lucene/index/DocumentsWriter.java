@@ -108,6 +108,7 @@ final class DocumentsWriter implements Closeable, Accountable {
 
     // TODO: cut over to BytesRefHash in BufferedDeletes
     volatile DocumentsWriterDeleteQueue deleteQueue;
+
     private final DocumentsWriterFlushQueue ticketQueue = new DocumentsWriterFlushQueue();
     /*
      * we preserve changes during a full flush since IW might not checkout before

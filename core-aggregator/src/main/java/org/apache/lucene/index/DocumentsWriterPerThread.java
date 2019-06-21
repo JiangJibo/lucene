@@ -157,16 +157,32 @@ class DocumentsWriterPerThread {
     final Counter bytesUsed;
 
     SegmentWriteState flushState;
-    // Updates for our still-in-RAM (to be flushed next) segment
+    /**
+     * 缓冲所有待更新的信息
+     * Updates for our still-in-RAM (to be flushed next) segment
+     */
     final BufferedUpdates pendingUpdates;
+
     final SegmentInfo segmentInfo;     // Current segment we are working on
     boolean aborted = false;   // True if we aborted
 
     private final FieldInfos.Builder fieldInfos;
     private final InfoStream infoStream;
     private int numDocsInRAM;
+
+    /**
+     * 删除队列,所有DWPT公用DocumentsWriter里的deleteQueue,各自维护自己的deleteSlice
+     *
+     * @see {@link DocumentsWriter#deleteQueue}
+     */
     final DocumentsWriterDeleteQueue deleteQueue;
+    /**
+     * 删除数据片段, 由全局的deleteQueue生成
+     *
+     * @see {@link DocumentsWriterDeleteQueue#newSlice()}
+     */
     private final DeleteSlice deleteSlice;
+
     private final NumberFormat nf = NumberFormat.getInstance(Locale.ROOT);
     final Allocator byteBlockAllocator;
     final IntBlockPool.Allocator intBlockAllocator;
@@ -511,6 +527,7 @@ class DocumentsWriterPerThread {
                 infoStream.message("DWPT", "flushed codec=" + codec);
             }
 
+            // 处理删除和更新操作
             final BufferedUpdates segmentDeletes;
             if (pendingUpdates.deleteQueries.isEmpty() && pendingUpdates.numericUpdates.isEmpty() && pendingUpdates.binaryUpdates.isEmpty()) {
                 pendingUpdates.clear();
@@ -532,6 +549,7 @@ class DocumentsWriterPerThread {
             FlushedSegment fs = new FlushedSegment(infoStream, segmentInfoPerCommit, flushState.fieldInfos,
                 segmentDeletes, flushState.liveDocs, flushState.delCountOnFlush,
                 sortMap);
+            // 生成FlushedSegment
             sealFlushedSegment(fs, sortMap);
             if (infoStream.isEnabled("DWPT")) {
                 infoStream.message("DWPT", "flush time " + ((System.nanoTime() - t0) / 1000000.0) + " msec");
@@ -561,7 +579,7 @@ class DocumentsWriterPerThread {
         return sortedLiveDocs;
     }
 
-    /**
+    /** 封上FlushedSegment 同时持久化 deleted document
      * Seals the {@link SegmentInfo} for the new flushed segment and persists
      * the deleted documents {@link MutableBits}.
      */

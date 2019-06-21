@@ -288,6 +288,15 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
         lastStartOffset = 0;
     }
 
+    /**
+     * 在 {@link #startDoc(int, int)} 和 {@link #finishDoc()} 之间夹杂着多次的此函数, 因为一个doc中可能出现多次term
+     *
+     * @param position
+     * @param payload
+     * @param startOffset
+     * @param endOffset
+     * @throws IOException
+     */
     @Override
     public void addPosition(int position, BytesRef payload, int startOffset, int endOffset) throws IOException {
         if (position > IndexWriter.MAX_POSITION) {

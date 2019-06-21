@@ -115,6 +115,14 @@ final class DefaultIndexingChain extends DocConsumer {
         return sorter.sort(state.segmentInfo.maxDoc(), comparators.toArray(new Sorter.DocComparator[comparators.size()]));
     }
 
+    /**
+     * 持久化数据到磁盘
+     *
+     * @param state
+     * @return
+     * @throws IOException
+     * @throws AbortingException
+     */
     @Override
     public Sorter.DocMap flush(SegmentWriteState state) throws IOException, AbortingException {
 
@@ -128,6 +136,7 @@ final class DefaultIndexingChain extends DocConsumer {
             docState.infoStream.message("IW", ((System.nanoTime() - t0) / 1000000) + " msec to write norms");
         }
 
+        // 写入docValues至 .dvm .dvd 文件
         t0 = System.nanoTime();
         writeDocValues(state, sortMap);
         if (docState.infoStream.isEnabled("IW")) {

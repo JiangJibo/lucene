@@ -921,12 +921,13 @@ public final class BlockTreeTermsWriter extends FieldsConsumer {
                 System.out.println("BTTW: write term=" + brToString(text) + " prefixStarts=" + Arrays.toString(tmp) + " pending.size()=" + pending.size());
             }
 
-            // 确认此term是否出现过,如果出现过则搜集freq,prox,offset信息
+            // IntBlockTermState, 确认此term是否出现过,如果出现过则搜集freq,prox,offset信息, 且将这些信息写入.doc，.pos,.pay文件中
             BlockTermState state = postingsWriter.writeTerm(text, termsEnum, docsSeen);
             if (state != null) {
 
                 assert state.docFreq != 0;
                 assert fieldInfo.getIndexOptions() == IndexOptions.DOCS || state.totalTermFreq >= state.docFreq : "postingsWriter=" + postingsWriter;
+                // 写term的文本值信息
                 pushTerm(text);
 
                 PendingTerm term = new PendingTerm(text, state);

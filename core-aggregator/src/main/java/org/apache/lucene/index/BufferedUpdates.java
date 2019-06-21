@@ -129,8 +129,17 @@ class BufferedUpdates {
   final AtomicInteger numNumericUpdates = new AtomicInteger();
   final AtomicInteger numBinaryUpdates = new AtomicInteger();
 
+  /**
+   * 删除的term
+   */
   final Map<Term,Integer> deleteTerms = new HashMap<>();
+  /**
+   * 待删除的query
+   */
   final Map<Query,Integer> deleteQueries = new HashMap<>();
+  /**
+   * 待删除的docID
+   */
   final List<Integer> deleteDocIDs = new ArrayList<>();
 
   // Map<dvField,Map<updateTerm,NumericUpdate>>

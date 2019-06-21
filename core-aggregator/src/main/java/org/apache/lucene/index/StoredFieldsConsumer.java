@@ -24,62 +24,63 @@ import org.apache.lucene.store.IOContext;
 import org.apache.lucene.util.IOUtils;
 
 class StoredFieldsConsumer {
-  final DocumentsWriterPerThread docWriter;
-  StoredFieldsWriter writer;
-  int lastDoc;
 
-  StoredFieldsConsumer(DocumentsWriterPerThread docWriter) {
-    this.docWriter = docWriter;
-    this.lastDoc = -1;
-  }
+    final DocumentsWriterPerThread docWriter;
+    StoredFieldsWriter writer;
+    int lastDoc;
 
-  protected void initStoredFieldsWriter() throws IOException {
-    if (writer == null) {
-      this.writer =
-          docWriter.codec.storedFieldsFormat().fieldsWriter(docWriter.directory, docWriter.getSegmentInfo(),
-              IOContext.DEFAULT);
+    StoredFieldsConsumer(DocumentsWriterPerThread docWriter) {
+        this.docWriter = docWriter;
+        this.lastDoc = -1;
     }
-  }
 
-  void startDocument(int docID) throws IOException {
-    assert lastDoc < docID;
-    initStoredFieldsWriter();
-    while (++lastDoc < docID) {
-      writer.startDocument();
-      writer.finishDocument();
+    protected void initStoredFieldsWriter() throws IOException {
+        if (writer == null) {
+            this.writer =
+                docWriter.codec.storedFieldsFormat().fieldsWriter(docWriter.directory, docWriter.getSegmentInfo(),
+                    IOContext.DEFAULT);
+        }
     }
-    writer.startDocument();
-  }
 
-  void writeField(FieldInfo info, IndexableField field) throws IOException {
-    writer.writeField(info, field);
-  }
-
-  void finishDocument() throws IOException {
-    writer.finishDocument();
-  }
-
-  void finish(int maxDoc) throws IOException {
-    while (lastDoc < maxDoc-1) {
-      startDocument(lastDoc);
-      finishDocument();
-      ++lastDoc;
+    void startDocument(int docID) throws IOException {
+        assert lastDoc < docID;
+        initStoredFieldsWriter();
+        while (++lastDoc < docID) {
+            writer.startDocument();
+            writer.finishDocument();
+        }
+        writer.startDocument();
     }
-  }
 
-  void flush(SegmentWriteState state, Sorter.DocMap sortMap) throws IOException {
-    try {
-      writer.finish(state.fieldInfos, state.segmentInfo.maxDoc());
-    } finally {
-      IOUtils.close(writer);
-      writer = null;
+    void writeField(FieldInfo info, IndexableField field) throws IOException {
+        writer.writeField(info, field);
     }
-  }
 
-  void abort() {
-    if (writer != null) {
-      IOUtils.closeWhileHandlingException(writer);
-      writer = null;
+    void finishDocument() throws IOException {
+        writer.finishDocument();
     }
-  }
+
+    void finish(int maxDoc) throws IOException {
+        while (lastDoc < maxDoc - 1) {
+            startDocument(lastDoc);
+            finishDocument();
+            ++lastDoc;
+        }
+    }
+
+    void flush(SegmentWriteState state, Sorter.DocMap sortMap) throws IOException {
+        try {
+            writer.finish(state.fieldInfos, state.segmentInfo.maxDoc());
+        } finally {
+            IOUtils.close(writer);
+            writer = null;
+        }
+    }
+
+    void abort() {
+        if (writer != null) {
+            IOUtils.closeWhileHandlingException(writer);
+            writer = null;
+        }
+    }
 }

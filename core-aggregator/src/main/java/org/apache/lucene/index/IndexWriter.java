@@ -1565,6 +1565,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     }
 
     /**
+     * 局部删除, 将待删除的数据放入 {@link DocumentsWriterPerThread#deleteQueue}中
      * Atomically deletes documents matching the provided
      * delTerm and adds a block of documents with sequentially
      * assigned document IDs, such that an external reader
@@ -1696,6 +1697,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     }
 
     /**
+     * 全局删除, 将待删除的数据放入 {@link DocumentsWriter#deleteQueue}中
      * Deletes the document(s) containing any of the
      * terms. All given deletes are applied and flushed atomically
      * at the same time.
@@ -1725,6 +1727,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     }
 
     /**
+     * 全局删除, 将待删除的数据放入 {@link DocumentsWriter#deleteQueue}中
      * Deletes the document(s) matching any of the provided queries.
      * All given deletes are applied and flushed atomically at the same time.
      *
@@ -1762,6 +1765,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     }
 
     /**
+     * 局部删除, 将待删除的数据放入 {@link DocumentsWriterPerThread#deleteQueue}中
      * Updates a document by first deleting the document(s)
      * containing <code>term</code> and then adding the new
      * document.  The delete and then add are atomic as seen
@@ -3708,6 +3712,11 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
         }
     }
 
+    /**
+     * 应用所有的更新和删除Doc
+     *
+     * @throws IOException
+     */
     final void applyAllDeletesAndUpdates() throws IOException {
         assert Thread.holdsLock(this) == false;
         flushDeletesCount.incrementAndGet();
