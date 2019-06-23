@@ -2722,7 +2722,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
         docWriter.putEvent(new DocumentsWriter.ResolveUpdatesEvent(packet));
     }
 
-    /**
+    /** 自动添加线程私有的删packet同事发布flushed的段入IndexWriter
      * Atomically adds the segment private delete packet and publishes the flushed
      * segments SegmentInfo to the index writer.
      */

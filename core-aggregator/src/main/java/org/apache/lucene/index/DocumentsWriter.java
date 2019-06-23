@@ -163,6 +163,7 @@ final class DocumentsWriter implements Closeable, Accountable {
         long seqNo = deleteQueue.addDelete(terms);
         flushControl.doOnDelete();
         lastSeqNo = Math.max(lastSeqNo, seqNo);
+        //如果缓存的删除太多会先解析一部分写入磁盘，以此释放一部分的内存占用
         if (applyAllDeletes(deleteQueue)) {
             seqNo = -seqNo;
         }

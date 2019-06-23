@@ -95,6 +95,13 @@ class DocumentsWriterFlushQueue {
         return ticketCount.get() != 0;
     }
 
+    /**
+     * 内部整合
+     *
+     * @param writer
+     * @return
+     * @throws IOException
+     */
     private int innerPurge(IndexWriter writer) throws IOException {
         assert purgeLock.isHeldByCurrentThread();
         int numPurged = 0;
@@ -208,12 +215,14 @@ class DocumentsWriterFlushQueue {
             // Finish the flushed segment and publish it to IndexWriter
             if (newSegment == null) {
                 if (bufferedUpdates != null && bufferedUpdates.any()) {
+                    // 应用更新
                     indexWriter.publishFrozenUpdates(bufferedUpdates);
                     if (indexWriter.infoStream.isEnabled("DW")) {
                         indexWriter.infoStream.message("DW", "flush: push buffered updates: " + bufferedUpdates);
                     }
                 }
             } else {
+                // 发布段
                 publishFlushedSegment(indexWriter, newSegment, bufferedUpdates);
             }
         }

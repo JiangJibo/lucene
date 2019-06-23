@@ -142,10 +142,15 @@ final class DocumentsWriterDeleteQueue implements Accountable {
     }
 
     /**
+     * 添加一个删除的Term信息, 同时更新DWPE 里的 {@link DocumentsWriterPerThread#deleteSlice} 的tail节点为此term
      * invariant for document update
+     * @param term
+     * @param slice
+     * @return
      */
     long add(Term term, DeleteSlice slice) {
         final TermNode termNode = new TermNode(term);
+        // 更新tail执行最新的node, 返回自增的nextSeqNo
         long seqNo = add(termNode);
         /*
          * this is an update request where the term is the updated documents
@@ -159,12 +164,20 @@ final class DocumentsWriterDeleteQueue implements Accountable {
          */
         slice.sliceTail = termNode;
         assert slice.sliceHead != slice.sliceTail : "slice head and tail must differ after add";
+
+        // //全局删除同步此局部删除, 将 globalSlice 的tail 更新为 termNode
         tryApplyGlobalSlice(); // TODO doing this each time is not necessary maybe
         // we can do it just every n times or so?
 
         return seqNo;
     }
 
+    /**
+     * 跟新tail执行最新的node
+     *
+     * @param newNode
+     * @return
+     */
     synchronized long add(Node<?> newNode) {
         tail.next = newNode;
         this.tail = newNode;
@@ -185,6 +198,10 @@ final class DocumentsWriterDeleteQueue implements Accountable {
         }
     }
 
+    /**
+     * 尝试处理全局片段
+     * 在更新{@link #tail} 时需要锁定
+     */
     void tryApplyGlobalSlice() {
         if (globalBufferLock.tryLock()) {
             /*
@@ -194,6 +211,7 @@ final class DocumentsWriterDeleteQueue implements Accountable {
              * tail the next time we can get the lock!
              */
             try {
+                // 将 globalSlice 里的tail 更新为 当前属性 tail
                 if (updateSliceNoSeqNo(globalSlice)) {
                     globalSlice.apply(globalBufferedUpdates, BufferedUpdates.MAX_INT);
                 }

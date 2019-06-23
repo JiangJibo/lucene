@@ -331,7 +331,7 @@ public final class Lucene50PostingsWriter extends PushPostingsWriterBase {
             offsetLengthBuffer[posBufferUpto] = endOffset - startOffset;
             lastStartOffset = startOffset;
         }
-        // 此term出现在所有的的doc的情况加1, 一个doc中出现多也算
+        // 此term出现在所有的的doc的情况加1, 一个doc中出现多次也算
         posBufferUpto++;
         lastPosition = position;
 

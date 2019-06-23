@@ -171,7 +171,7 @@ class DocumentsWriterPerThread {
     private int numDocsInRAM;
 
     /**
-     * 删除队列,所有DWPT公用DocumentsWriter里的deleteQueue,各自维护自己的deleteSlice
+     * 删除队列,所有DWPT共用DocumentsWriter里的deleteQueue,各自维护自己的deleteSlice
      *
      * @see {@link DocumentsWriter#deleteQueue}
      */
@@ -296,11 +296,12 @@ class DocumentsWriterPerThread {
         } finally {
             if (!success) {
                 // mark document as deleted
+                //如果失败，则将该文档放入此DWPT pendingUpdates的deleteDocIDs中
                 deleteDocID(docState.docID);
                 numDocsInRAM++;
             }
         }
-
+        //结束文档更新，开始此DWPT deleteSlice相关逻辑
         return finishDocument(delTerm);
     }
 
@@ -390,14 +391,17 @@ class DocumentsWriterPerThread {
          * the updated slice we get from 1. holds all the deletes that have occurred
          * since we updated the slice the last time.
          */
+        //因为上面已经插入一个文档，所以numDocsInRAM !=0，因此applySlice= true
         boolean applySlice = numDocsInRAM != 0;
         long seqNo;
+        //如果不是通过addDocument触发的新增更新，则deleteNode不为空
+        //此时将此deleteNode添加到deleteSlice中
         if (delTerm != null) {
             seqNo = deleteQueue.add(delTerm, deleteSlice);
             assert deleteSlice.isTailItem(delTerm) : "expected the delete term as the tail item";
         } else {
             seqNo = deleteQueue.updateSlice(deleteSlice);
-
+            // 有新的delete操作收到了
             if (seqNo < 0) {
                 seqNo = -seqNo;
             } else {
@@ -405,11 +409,13 @@ class DocumentsWriterPerThread {
             }
         }
 
+        //如果有删除操作，则将此时deleteSlice中维护的Node放入pendingUpdates中
+        //否则重置deleteSlice的收尾指针.
         if (applySlice) {
             deleteSlice.apply(pendingUpdates, numDocsInRAM);
         } else { // if we don't need to apply we must reset!
             deleteSlice.reset();
-        }
+        }  
         ++numDocsInRAM;
 
         return seqNo;
