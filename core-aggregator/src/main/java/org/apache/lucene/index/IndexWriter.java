@@ -2354,7 +2354,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      *
      * @param mergePolicy
      * @param trigger
-     * @param maxNumSegments
+     * @param maxNumSegments {@link UNBOUNDED_MAX_MERGE_SEGMENTS}
      * @return
      * @throws IOException
      */
@@ -2383,6 +2383,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
             assert trigger == MergeTrigger.EXPLICIT || trigger == MergeTrigger.MERGE_FINISHED :
                 "Expected EXPLICT or MERGE_FINISHED as trigger even with maxNumSegments set but was: " + trigger.name();
 
+            // 从多个segment中找出最多 maxNumSegments 个来merge。 mergePolicy ： TieredMergePolicy
             spec = mergePolicy.findForcedMerges(segmentInfos, maxNumSegments, Collections.unmodifiableMap(segmentsToMerge), this);
             newMergesFound = spec != null;
             if (newMergesFound) {
@@ -2393,7 +2394,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
                 }
             }
         }
-
+        // 获取所有可以merge 的segment
         else {
             spec = mergePolicy.findMerges(trigger, segmentInfos, this);
         }

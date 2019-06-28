@@ -540,7 +540,10 @@ class DocumentsWriterPerThread {
             // 刷新
             sortMap = consumer.flush(flushState);
             // We clear this here because we already resolved them (private to this segment) when writing postings:
+            //因为在刷盘时已经处理了term删除，所以这里可以将其清除
             pendingUpdates.clearDeleteTerms();
+
+            //将此DWPT维护的segmentInfo文件更新为此次刷新新创建的文件
             segmentInfo.setFiles(new HashSet<>(directory.getCreatedFiles()));
 
             final SegmentCommitInfo segmentInfoPerCommit = new SegmentCommitInfo(segmentInfo, 0, -1L, -1L, -1L);
@@ -560,8 +563,7 @@ class DocumentsWriterPerThread {
 
             // 处理删除和更新操作
             final BufferedUpdates segmentDeletes;
-            if (pendingUpdates.deleteQueries.isEmpty() && pendingUpdates.numericUpdates.isEmpty()
-                && pendingUpdates.binaryUpdates.isEmpty()) {
+            if (pendingUpdates.deleteQueries.isEmpty() && pendingUpdates.numericUpdates.isEmpty() && pendingUpdates.binaryUpdates.isEmpty()) {
                 pendingUpdates.clear();
                 segmentDeletes = null;
             } else {
@@ -577,10 +579,10 @@ class DocumentsWriterPerThread {
             }
 
             assert segmentInfo != null;
-
+            // 返回一个已经Flush好的Segment, 同时将 BufferedUpdates 传入以备后续Merge QueryDelete, DocValuesUpdate
+            // 此时这个Segment的相关数据已经Flush到磁盘了,而且也应用了TermDelete, 但是还没有处理QueryDelete, DocValuesUpdate
             FlushedSegment fs = new FlushedSegment(infoStream, segmentInfoPerCommit, flushState.fieldInfos,
-                segmentDeletes, flushState.liveDocs, flushState.delCountOnFlush,
-                sortMap);
+                segmentDeletes, flushState.liveDocs, flushState.delCountOnFlush, sortMap);
             // 生成FlushedSegment
             sealFlushedSegment(fs, sortMap);
             if (infoStream.isEnabled("DWPT")) {

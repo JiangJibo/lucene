@@ -32,12 +32,20 @@ final class FreqProxTermsWriter extends TermsHash {
         super(docWriter, true, termVectors);
     }
 
+    /**
+     * 在刷盘是应用Term Delete
+     *
+     * @param state
+     * @param fields
+     * @throws IOException
+     */
     private void applyDeletes(SegmentWriteState state, Fields fields) throws IOException {
         // Process any pending Term deletes for this newly
         // flushed segment:
         if (state.segUpdates != null && state.segUpdates.deleteTerms.size() > 0) {
             Map<Term, Integer> segDeletes = state.segUpdates.deleteTerms;
             List<Term> deleteTerms = new ArrayList<>(segDeletes.keySet());
+            // 对term排序, 按term所属的Field或者字节排序
             Collections.sort(deleteTerms);
             String lastField = null;
             TermsEnum termsEnum = null;
@@ -47,22 +55,27 @@ final class FreqProxTermsWriter extends TermsHash {
                     lastField = deleteTerm.field();
                     Terms terms = fields.terms(lastField);
                     if (terms != null) {
+                        // Term遍历器
                         termsEnum = terms.iterator();
                     } else {
                         termsEnum = null;
                     }
                 }
 
+                // 是否有这个term
                 if (termsEnum != null && termsEnum.seekExact(deleteTerm.bytes())) {
                     postingsEnum = termsEnum.postings(postingsEnum, 0);
+                    // term删除上限,也就是在删除term是内存里总共有多少个doc, 不能把之后的doc删掉
                     int delDocLimit = segDeletes.get(deleteTerm);
                     assert delDocLimit < PostingsEnum.NO_MORE_DOCS;
                     while (true) {
                         int doc = postingsEnum.nextDoc();
+                        // 如果符合删除
                         if (doc < delDocLimit) {
                             if (state.liveDocs == null) {
                                 state.liveDocs = state.segmentInfo.getCodec().liveDocsFormat().newLiveDocs(state.segmentInfo.maxDoc());
                             }
+                            // 将liveDocs里移除被删除的doc
                             if (state.liveDocs.get(doc)) {
                                 state.delCountOnFlush++;
                                 state.liveDocs.clear(doc);
@@ -77,7 +90,8 @@ final class FreqProxTermsWriter extends TermsHash {
     }
 
     @Override
-    public void flush(Map<String, TermsHashPerField> fieldsToFlush, final SegmentWriteState state, Sorter.DocMap sortMap) throws IOException {
+    public void flush(Map<String, TermsHashPerField> fieldsToFlush, final SegmentWriteState state,
+        Sorter.DocMap sortMap) throws IOException {
         super.flush(fieldsToFlush, state, sortMap);
 
         // Gather all fields that saw any postings:
@@ -96,6 +110,7 @@ final class FreqProxTermsWriter extends TermsHash {
         CollectionUtil.introSort(allFields);
 
         Fields fields = new FreqProxFields(allFields);
+        // 应用Term Delete 因为在刷盘时已经处理了term删除，所以这里可以将其清除
         applyDeletes(state, fields);
         if (sortMap != null) {
             fields = new SortingLeafReader.SortingFields(fields, state.fieldInfos, sortMap);
@@ -119,6 +134,7 @@ final class FreqProxTermsWriter extends TermsHash {
 
     @Override
     public TermsHashPerField addField(FieldInvertState invertState, FieldInfo fieldInfo) {
-        return new FreqProxTermsWriterPerField(invertState, this, fieldInfo, nextTermsHash.addField(invertState, fieldInfo));
+        return new FreqProxTermsWriterPerField(invertState, this, fieldInfo,
+            nextTermsHash.addField(invertState, fieldInfo));
     }
 }
