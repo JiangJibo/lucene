@@ -134,7 +134,7 @@ class BufferedUpdates {
    */
   final Map<Term,Integer> deleteTerms = new HashMap<>();
   /**
-   * 待删除的query
+   * 待删除的query, value是删除条数
    */
   final Map<Query,Integer> deleteQueries = new HashMap<>();
   /**

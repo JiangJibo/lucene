@@ -44,6 +44,7 @@ import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.RamUsageEstimator;
 
 /**
+ * 持有缓冲通过term或者query实现的删除，更新，
  * Holds buffered deletes and updates by term or query, once pushed. Pushed
  * deletes/updates are write-once, so we shift to more memory efficient data
  * structure to hold them.  We don't hold docIDs because these are applied on
@@ -63,6 +64,7 @@ class FrozenBufferedUpdates {
 
     // Parallel array of deleted query, and the docIDUpto for each
     final Query[] deleteQueries;
+    // 删除doc是docID的上限,因为docID在一个Segment里是递增的,防止在删除时新增的doc被误删了. 每个删除都会记录当前内存中的docID的上限,docIdUpto
     final int[] deleteQueryLimits;
 
     // numeric DV update term and their updates
@@ -75,6 +77,7 @@ class FrozenBufferedUpdates {
     private int binaryDVUpdateCount;
 
     /**
+     * 用这个异步线程锁来确定所有线程都处理好更新
      * Counts down once all deletes/updates have been applied
      */
     public final CountDownLatch applied = new CountDownLatch(1);
@@ -94,11 +97,13 @@ class FrozenBufferedUpdates {
     // only have Queries and doc values updates
     private final InfoStream infoStream;
 
-    public FrozenBufferedUpdates(InfoStream infoStream, BufferedUpdates updates, SegmentCommitInfo privateSegment) throws IOException {
+    public FrozenBufferedUpdates(InfoStream infoStream, BufferedUpdates updates, SegmentCommitInfo privateSegment)
+        throws IOException {
         this.infoStream = infoStream;
         this.privateSegment = privateSegment;
         assert updates.deleteDocIDs.isEmpty();
-        assert privateSegment == null || updates.deleteTerms.isEmpty() : "segment private packet should only have del queries";
+        assert privateSegment == null || updates.deleteTerms.isEmpty()
+            : "segment private packet should only have del queries";
         Term termsArray[] = updates.deleteTerms.keySet().toArray(new Term[updates.deleteTerms.size()]);
         ArrayUtil.timSort(termsArray);
         PrefixCodedTerms.Builder builder = new PrefixCodedTerms.Builder();
@@ -249,6 +254,7 @@ class FrozenBufferedUpdates {
     }
 
     /**
+     * 处理所有冻结的缓冲更新
      * Translates a frozen packet of delete term/query, or doc values
      * updates, into their actual docIDs in the index, and applies the change.  This is a heavy
      * operation and is done concurrently by incoming indexing threads.
@@ -272,9 +278,12 @@ class FrozenBufferedUpdates {
 
         boolean finished = false;
 
-        // Optimistic concurrency: assume we are free to resolve the deletes against all current segments in the index, despite that
-        // concurrent merges are running.  Once we are done, we check to see if a merge completed while we were running.  If so, we must retry
-        // resolving against the newly merged segment(s).  Eventually no merge finishes while we were running and we are done.
+        // Optimistic concurrency: assume we are free to resolve the deletes against all current segments in the
+        // index, despite that
+        // concurrent merges are running.  Once we are done, we check to see if a merge completed while we were
+        // running.  If so, we must retry
+        // resolving against the newly merged segment(s).  Eventually no merge finishes while we were running and we
+        // are done.
         while (true) {
             String messagePrefix;
             if (iter == 0) {
@@ -303,7 +312,8 @@ class FrozenBufferedUpdates {
 
                 // Must open while holding IW lock so that e.g. segments are not merged
                 // away, dropped from 100% deletions, etc., before we can open the readers
-                segStates = writer.bufferedUpdatesStream.openSegmentStates(writer.readerPool, infos, seenSegments, delGen());
+                segStates = writer.bufferedUpdatesStream.openSegmentStates(writer.readerPool, infos, seenSegments,
+                    delGen());
 
                 if (segStates.length == 0) {
 
@@ -330,6 +340,8 @@ class FrozenBufferedUpdates {
             long delCount;
             try {
                 // don't hold IW monitor lock here so threads are free concurrently resolve deletes/updates:
+                // 不持有IndexWriter的锁，这样其他线程就能自由的并发处理deletes/updates
+                // 每个线程获取所有的Segment时是同步的,但每个线程对这些segment处理删除和更新时是并发的
                 delCount = apply(segStates);
                 success = true;
             } finally {
@@ -345,27 +357,32 @@ class FrozenBufferedUpdates {
 
             if (infoStream.isEnabled("BD")) {
                 infoStream.message("BD", String.format(Locale.ROOT,
-                    messagePrefix + "done inner apply del packet (%s) to %d segments; %d new deletes/updates; took %.3f sec",
+                    messagePrefix
+                        + "done inner apply del packet (%s) to %d segments; %d new deletes/updates; took %.3f sec",
                     this, segStates.length, delCount, (System.nanoTime() - iterStartNS) / 1000000000.));
             }
 
             if (privateSegment != null) {
-                // No need to retry for a segment-private packet: the merge that folds in our private segment already waits for all deletes to
-                // be applied before it kicks off, so this private segment must already not be in the set of merging segments
+                // No need to retry for a segment-private packet: the merge that folds in our private segment already
+                // waits for all deletes to
+                // be applied before it kicks off, so this private segment must already not be in the set of merging
+                // segments
 
                 break;
             }
 
-            // Must sync on writer here so that IW.mergeCommit is not running concurrently, so that if we exit, we know mergeCommit will succeed
+            // Must sync on writer here so that IW.mergeCommit is not running concurrently, so that if we exit, we
+            // know mergeCommit will succeed
             // in pulling all our delGens into a merge:
             synchronized (writer) {
                 long mergeGenCur = writer.mergeFinishedGen.get();
 
                 if (mergeGenCur == mergeGenStart) {
 
-                    // Must do this while still holding IW lock else a merge could finish and skip carrying over our updates:
+                    // Must do this while still holding IW lock else a merge could finish and skip carrying over our
+                    // updates:
 
-                    // Record that this packet is finished:
+                    // Record that this packet is finished: 结束当前DWPT的删除和更新, {@link applied} CountDownLatch -1
                     writer.bufferedUpdatesStream.finished(this);
 
                     finished = true;
@@ -379,7 +396,8 @@ class FrozenBufferedUpdates {
                 infoStream.message("BD", messagePrefix + "concurrent merges finished; move to next iter");
             }
 
-            // A merge completed while we were running.  In this case, that merge may have picked up some of the updates we did, but not
+            // A merge completed while we were running.  In this case, that merge may have picked up some of the
+            // updates we did, but not
             // necessarily all of them, so we cycle again, re-applying all our updates to the newly merged segment.
 
             iter++;
@@ -402,12 +420,22 @@ class FrozenBufferedUpdates {
         }
     }
 
+    /**
+     * 结束处理
+     *
+     * @param writer
+     * @param segStates
+     * @param success
+     * @param delFiles
+     * @throws IOException
+     */
     private void finishApply(IndexWriter writer, BufferedUpdatesStream.SegmentState[] segStates,
-                             boolean success, Set<String> delFiles) throws IOException {
+        boolean success, Set<String> delFiles) throws IOException {
         synchronized (writer) {
 
             BufferedUpdatesStream.ApplyDeletesResult result;
             try {
+                // 返回是发生实际删除操作以及有哪些segment被整个删除
                 result = writer.bufferedUpdatesStream.closeSegmentStates(writer.readerPool, segStates, success);
             } finally {
                 // Matches the incRef we did above, but we must do the decRef after closing segment states else
@@ -416,10 +444,12 @@ class FrozenBufferedUpdates {
             }
 
             if (result.anyDeletes) {
+                // 有删除发生,需要merge
                 writer.maybeMerge.set(true);
+                // 设置检查点,当有改变操作发生时
                 writer.checkpoint();
             }
-
+            // 如果有某个segment被整个删除
             if (writer.keepFullyDeletedSegments == false && result.allDeleted != null) {
                 if (infoStream.isEnabled("IW")) {
                     infoStream.message("IW", "drop 100% deleted segments: " + writer.segString(result.allDeleted));
@@ -427,6 +457,7 @@ class FrozenBufferedUpdates {
                 for (SegmentCommitInfo info : result.allDeleted) {
                     writer.dropDeletedSegment(info);
                 }
+                // 设置检查点,当有改变操作发生时
                 writer.checkpoint();
             }
         }
@@ -450,7 +481,7 @@ class FrozenBufferedUpdates {
             assert segStates.length == 1;
             assert privateSegment == segStates[0].reader.getSegmentInfo();
         }
-
+        // 处理各种更新
         totalDelCount += applyTermDeletes(segStates);
         totalDelCount += applyQueryDeletes(segStates);
         totalDelCount += applyDocValuesUpdates(segStates);
@@ -493,7 +524,9 @@ class FrozenBufferedUpdates {
 
         if (infoStream.isEnabled("BD")) {
             infoStream.message("BD",
-                String.format(Locale.ROOT, "applyDocValuesUpdates %.1f msec for %d segments, %d numeric updates and %d binary updates; %d new updates",
+                String.format(Locale.ROOT,
+                    "applyDocValuesUpdates %.1f msec for %d segments, %d numeric updates and %d binary updates; %d "
+                        + "new updates",
                     (System.nanoTime() - startNS) / 1000000.,
                     segStates.length,
                     numericDVUpdateCount,
@@ -505,7 +538,7 @@ class FrozenBufferedUpdates {
     }
 
     private long applyDocValuesUpdates(BufferedUpdatesStream.SegmentState segState,
-                                       byte[] updates, boolean isNumeric) throws IOException {
+        byte[] updates, boolean isNumeric) throws IOException {
 
         TermsEnum termsEnum = null;
         PostingsEnum postingsEnum = null;
@@ -572,7 +605,8 @@ class FrozenBufferedUpdates {
 
             // TODO: we could at least *collate* by field?
 
-            // This is the field used to resolve to docIDs, e.g. an "id" field, not the doc values field we are updating!
+            // This is the field used to resolve to docIDs, e.g. an "id" field, not the doc values field we are
+            // updating!
             if ((code & 1) != 0) {
                 Terms terms = segState.reader.terms(termField);
                 if (terms != null) {
@@ -660,6 +694,13 @@ class FrozenBufferedUpdates {
         return updateCount;
     }
 
+    /**
+     * 处理通过query执行的删除
+     *
+     * @param segStates
+     * @return
+     * @throws IOException
+     */
     // Delete by query
     private long applyQueryDeletes(BufferedUpdatesStream.SegmentState[] segStates) throws IOException {
 
@@ -697,11 +738,14 @@ class FrozenBufferedUpdates {
                 final IndexSearcher searcher = new IndexSearcher(readerContext.reader());
                 searcher.setQueryCache(null);
                 final Weight weight = searcher.createNormalizedWeight(query, false);
+                // doc应用查询,如果删除有指定条数限制, 那么要按分数倒排然后查看是否超过限制后删除
                 final Scorer scorer = weight.scorer(readerContext);
                 if (scorer != null) {
                     final DocIdSetIterator it = scorer.iterator();
 
                     int docID;
+                    // 删除的docID不能超过上限,防止在删除时新增的doc被误删了. 每个删除都会记录当前内存中的docID的上限,docIdUpto
+                    // 只有查询删除需要这样, term和docID删除不需要
                     while ((docID = it.nextDoc()) < limit) {
                         if (segState.rld.delete(docID)) {
                             delCount++;
@@ -713,7 +757,8 @@ class FrozenBufferedUpdates {
 
         if (infoStream.isEnabled("BD")) {
             infoStream.message("BD",
-                String.format(Locale.ROOT, "applyQueryDeletes took %.2f msec for %d segments and %d queries; %d new deletions",
+                String.format(Locale.ROOT,
+                    "applyQueryDeletes took %.2f msec for %d segments and %d queries; %d new deletions",
                     (System.nanoTime() - startNS) / 1000000.,
                     segStates.length,
                     deleteQueries.length,
@@ -723,6 +768,13 @@ class FrozenBufferedUpdates {
         return delCount;
     }
 
+    /**
+     * 处理Term删除
+     *
+     * @param segStates
+     * @return
+     * @throws IOException
+     */
     private long applyTermDeletes(BufferedUpdatesStream.SegmentState[] segStates) throws IOException {
 
         if (deleteTerms.size() == 0) {
@@ -736,7 +788,7 @@ class FrozenBufferedUpdates {
             long startNS = System.nanoTime();
 
             long delCount = 0;
-
+            // 遍历每个segment, 应用删除
             for (BufferedUpdatesStream.SegmentState segState : segStates) {
                 assert segState.delGen != delGen : "segState.delGen=" + segState.delGen + " vs this.gen=" + delGen;
                 if (segState.delGen > delGen) {
@@ -757,13 +809,16 @@ class FrozenBufferedUpdates {
                 TermsEnum termsEnum = null;
                 BytesRef readerTerm = null;
                 PostingsEnum postingsEnum = null;
+                // 遍历deleteTerms里的每个term, 每个term都有相应的Field
                 while ((delTerm = iter.next()) != null) {
 
                     if (iter.field() != field) {
-                        // field changed
+                        // field changed, 这个delTerm所属的Field与上一个delTerm不同, 指定Field为当前term对应的Field
                         field = iter.field();
+                        // 读取Segment里此Field的所有Term
                         Terms terms = segState.reader.terms(field);
                         if (terms != null) {
+                            // 获取Term的遍历器以及第一个Term
                             termsEnum = terms.iterator();
                             readerTerm = termsEnum.next();
                         } else {
@@ -773,18 +828,23 @@ class FrozenBufferedUpdates {
 
                     // 定位term
                     if (termsEnum != null) {
+                        // 对比两个Term, 逐字节对比大小, 如果不相等, 返回差值
                         int cmp = delTerm.compareTo(readerTerm);
+                        // 如果这个term比当前对比的term小,那么继续
                         if (cmp < 0) {
                             // TODO: can we advance across del terms here?
                             // move to next del term
                             continue;
-                        } else if (cmp == 0) {
+                        } else if (cmp == 0) {  // 找到一个的term了
                             // fall through
                         } else if (cmp > 0) {
+                            // 当前delTerm比对比的term大了  ,    seekCeil：搜寻上限, 可能一个term里包含另一个term
+                            // 比如delTerm = 'lab' , term = 'islab'
                             TermsEnum.SeekStatus status = termsEnum.seekCeil(delTerm);
                             if (status == TermsEnum.SeekStatus.FOUND) {
                                 // fall through
                             } else if (status == TermsEnum.SeekStatus.NOT_FOUND) {
+                                // 没找到, 那么指针指向下个term
                                 readerTerm = termsEnum.term();
                                 continue;
                             } else {
@@ -801,6 +861,7 @@ class FrozenBufferedUpdates {
                         assert postingsEnum != null;
 
                         int docID;
+                        // 遍历获取这个term的所有docID, 依次删除
                         while ((docID = postingsEnum.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
 
                             // NOTE: there is no limit check on the docID
@@ -808,6 +869,7 @@ class FrozenBufferedUpdates {
                             // because on flush we apply all Term deletes to
                             // each segment.  So all Term deleting here is
                             // against prior segments:
+                            // 不想query delete 需要验证docID的上限, delete(docID)是线程同步方法
                             if (segState.rld.delete(docID)) {
                                 delCount++;
                             }
@@ -818,7 +880,8 @@ class FrozenBufferedUpdates {
 
             if (infoStream.isEnabled("BD")) {
                 infoStream.message("BD",
-                    String.format(Locale.ROOT, "applyTermDeletes took %.2f msec for %d segments and %d del terms; %d new deletions",
+                    String.format(Locale.ROOT,
+                        "applyTermDeletes took %.2f msec for %d segments and %d del terms; %d new deletions",
                         (System.nanoTime() - startNS) / 1000000.,
                         segStates.length,
                         deleteTerms.size(),
@@ -872,7 +935,8 @@ class FrozenBufferedUpdates {
     }
 
     boolean any() {
-        return deleteTerms.size() > 0 || deleteQueries.length > 0 || numericDVUpdates.length > 0 || binaryDVUpdates.length > 0;
+        return deleteTerms.size() > 0 || deleteQueries.length > 0 || numericDVUpdates.length > 0
+            || binaryDVUpdates.length > 0;
     }
 
     boolean anyDeleteTerms() {

@@ -631,7 +631,7 @@ final class DocumentsWriter implements Closeable, Accountable {
             } finally {
                 flushControl.doAfterFlush(flushingDWPT);
             }
-
+            // 工作密取形式的flush,当前线程处理完可以拉取其他的DWPT
             flushingDWPT = flushControl.nextPendingFlush();
         }
 

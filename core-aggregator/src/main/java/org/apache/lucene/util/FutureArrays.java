@@ -59,12 +59,13 @@ public final class FutureArrays {
     int bLen = bToIndex - bFromIndex;
     int len = Math.min(aLen, bLen);
     for (int i = 0; i < len; i++)
+      // 先对比每个字节的大小
       if (a[i+aFromIndex] != b[i+bFromIndex])
         return i;
     return aLen == bLen ? -1 : len;
   }
   
-  /**
+  /** 对比两个数, 最高位不再作为符号位, 实际就是对比两个字符串的大小,参考mysql的索引机制
    * Behaves like Java 9's Arrays.compareUnsigned
    * @see <a href="http://download.java.net/java/jdk9/docs/api/java/util/Arrays.html#compareUnsigned-byte:A-int-int-byte:A-int-int-">Arrays.compareUnsigned</a>
    */
@@ -77,6 +78,7 @@ public final class FutureArrays {
     for (int i = 0; i < len; i++) {
       int aByte = a[i+aFromIndex] & 0xFF;
       int bByte = b[i+bFromIndex] & 0xFF;
+      // 对比两个字节大小, 如果不相等, 返回差值
       int diff = aByte - bByte;
       if (diff != 0) {
         return diff;

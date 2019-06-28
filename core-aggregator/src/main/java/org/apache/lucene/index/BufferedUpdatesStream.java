@@ -34,6 +34,8 @@ import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.InfoStream;
 
 /**
+ * 当DWPT Flush时跟踪 FrozenBufferedUpdates, 他缓存的删除和更新数据会立即打开和被处理
+ * (就是应用到每个Segment的docID上)
  * Tracks the stream of {@link FrozenBufferedUpdates}.
  * When DocumentsWriterPerThread flushes, its buffered
  * deletes and updates are appended to this stream and immediately
@@ -91,7 +93,8 @@ class BufferedUpdatesStream implements Accountable {
         bytesUsed.addAndGet(packet.bytesUsed);
         if (infoStream.isEnabled("BD")) {
             infoStream.message("BD",
-                String.format(Locale.ROOT, "push new packet (%s), packetCount=%d, bytesUsed=%.3f MB", packet, updates.size(), bytesUsed.get() / 1024. / 1024.));
+                String.format(Locale.ROOT, "push new packet (%s), packetCount=%d, bytesUsed=%.3f MB", packet,
+                    updates.size(), bytesUsed.get() / 1024. / 1024.));
         }
         assert checkDeleteStats();
 
@@ -134,10 +137,10 @@ class BufferedUpdatesStream implements Accountable {
 
     public static class ApplyDeletesResult {
 
-        // True if any actual deletes took place:
+        // True if any actual deletes took place: 是否有实际删除
         public final boolean anyDeletes;
 
-        // If non-null, contains segments that are 100% deleted
+        // If non-null, contains segments that are 100% deleted 删除整个segment
         public final List<SegmentCommitInfo> allDeleted;
 
         ApplyDeletesResult(boolean anyDeletes, List<SegmentCommitInfo> allDeleted) {
@@ -183,8 +186,10 @@ class BufferedUpdatesStream implements Accountable {
      */
 
     public synchronized void finished(FrozenBufferedUpdates packet) {
-        // TODO: would be a bit more memory efficient to track this per-segment, so when each segment writes it writes all packets finished for
-        // it, rather than only recording here, across all segments.  But, more complex code, and more CPU, and maybe not so much impact in
+        // TODO: would be a bit more memory efficient to track this per-segment, so when each segment writes it
+        //  writes all packets finished for
+        // it, rather than only recording here, across all segments.  But, more complex code, and more CPU, and maybe
+        // not so much impact in
         // practice?
         assert packet.applied.getCount() == 1 : "packet=" + packet;
 
@@ -233,12 +238,19 @@ class BufferedUpdatesStream implements Accountable {
         }
 
         if (infoStream.isEnabled("BD")) {
-            infoStream.message("BD", "waitApplyForMerge: " + waitFor.size() + " packets, " + mergeInfos.size() + " merging segments");
+            infoStream.message("BD",
+                "waitApplyForMerge: " + waitFor.size() + " packets, " + mergeInfos.size() + " merging segments");
         }
 
         waitApply(waitFor);
     }
 
+    /**
+     * 等待每个DWPT的更新都被处理
+     *
+     * @param waitFor
+     * @throws IOException
+     */
     private void waitApply(Set<FrozenBufferedUpdates> waitFor) throws IOException {
 
         long startNS = System.nanoTime();
@@ -261,13 +273,15 @@ class BufferedUpdatesStream implements Accountable {
             // Frozen packets are now resolved, concurrently, by the indexing threads that
             // create them, by adding a DocumentsWriter.ResolveUpdatesEvent to the events queue,
             // but if we get here and the packet is not yet resolved, we resolve it now ourselves:
+            // 每个缓冲更新包都被IndexWriter处理
             packet.apply(writer);
             totalDelCount += packet.totalDelCount;
         }
 
         if (infoStream.isEnabled("BD")) {
             infoStream.message("BD",
-                String.format(Locale.ROOT, "waitApply: done %d packets; totalDelCount=%d; totBytesUsed=%d; took %.2f msec",
+                String.format(Locale.ROOT,
+                    "waitApply: done %d packets; totalDelCount=%d; totBytesUsed=%d; took %.2f msec",
                     packetCount,
                     totalDelCount,
                     bytesUsed.get(),
@@ -318,7 +332,7 @@ class BufferedUpdatesStream implements Accountable {
      * Opens SegmentReader and inits SegmentState for each segment.
      */
     public SegmentState[] openSegmentStates(IndexWriter.ReaderPool pool, List<SegmentCommitInfo> infos,
-                                            Set<SegmentCommitInfo> alreadySeenSegments, long delGen) throws IOException {
+        Set<SegmentCommitInfo> alreadySeenSegments, long delGen) throws IOException {
         ensureOpen();
 
         List<SegmentState> segStates = new ArrayList<>();
@@ -349,7 +363,8 @@ class BufferedUpdatesStream implements Accountable {
     /**
      * Close segment states previously opened with openSegmentStates.
      */
-    public ApplyDeletesResult closeSegmentStates(IndexWriter.ReaderPool pool, SegmentState[] segStates, boolean success) throws IOException {
+    public ApplyDeletesResult closeSegmentStates(IndexWriter.ReaderPool pool, SegmentState[] segStates, boolean success)
+        throws IOException {
         int count = segStates.length;
         Throwable firstExc = null;
         List<SegmentCommitInfo> allDeleted = null;
@@ -358,9 +373,12 @@ class BufferedUpdatesStream implements Accountable {
         for (int j = 0; j < count; j++) {
             SegmentState segState = segStates[j];
             if (success) {
+                // 本次删除的数量  += 当前所有的删除数量 - 执行本次删除前的数量
                 totDelCount += segState.rld.getPendingDeleteCount() - segState.startDelCount;
                 int fullDelCount = segState.rld.info.getDelCount() + segState.rld.getPendingDeleteCount();
+                // 删除的doc数量不能大于 segment里所有的doc数量
                 assert fullDelCount <= segState.rld.info.info.maxDoc();
+                // 如果相等，说明一个segment里全部被删除
                 if (fullDelCount == segState.rld.info.info.maxDoc()) {
                     if (allDeleted == null) {
                         allDeleted = new ArrayList<>();
@@ -385,7 +403,8 @@ class BufferedUpdatesStream implements Accountable {
 
         if (infoStream.isEnabled("BD")) {
             infoStream.message("BD",
-                "closeSegmentStates: " + totDelCount + " new deleted documents; pool " + updates.size() + " packets; bytesUsed=" + pool.ramBytesUsed());
+                "closeSegmentStates: " + totDelCount + " new deleted documents; pool " + updates.size()
+                    + " packets; bytesUsed=" + pool.ramBytesUsed());
         }
 
         return new ApplyDeletesResult(totDelCount > 0, allDeleted);
@@ -453,7 +472,8 @@ class BufferedUpdatesStream implements Accountable {
             }
 
             if (infoStream.isEnabled("BD")) {
-                infoStream.message("BD", "finished packet delGen=" + delGen + " now completedDelGen=" + completedDelGen);
+                infoStream.message("BD",
+                    "finished packet delGen=" + delGen + " now completedDelGen=" + completedDelGen);
             }
         }
     }

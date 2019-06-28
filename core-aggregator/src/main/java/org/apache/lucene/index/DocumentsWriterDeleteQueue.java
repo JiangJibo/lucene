@@ -70,11 +70,17 @@ import org.apache.lucene.util.InfoStream;
  */
 final class DocumentsWriterDeleteQueue implements Accountable {
 
-    // the current end (latest delete operation) in the delete queue:
+    /**
+     * 每个DWPT在添加更新操作时都会将tail置为最新的删除节点,
+     * 然后 {@link #globalSlice} 判断如果自己的 sliceTail 和 此tail不一致, 那么更新 sliceTail指向此tail,
+     * 然后将此节点添加到 {@link #globalBufferedUpdates} 中
+     * the current end (latest delete operation) in the delete queue:
+     */
     private volatile Node<?> tail;
 
     /**
-     * Used to record deletes against all prior (already written to disk) segments.  Whenever any segment flushes, we bundle up this set of
+     * Used to record deletes against all prior (already written to disk) segments.  Whenever any segment flushes, we
+     * bundle up this set of
      * deletes and insert into the buffered updates stream before the newly flushed segment(s).
      */
     private final DeleteSlice globalSlice;
@@ -86,7 +92,8 @@ final class DocumentsWriterDeleteQueue implements Accountable {
     final long generation;
 
     /**
-     * Generates the sequence number that IW returns to callers changing the index, showing the effective serialization of all operations.
+     * Generates the sequence number that IW returns to callers changing the index, showing the effective serialization
+     * of all operations.
      */
     private final AtomicLong nextSeqNo;
 
@@ -104,7 +111,8 @@ final class DocumentsWriterDeleteQueue implements Accountable {
         this(infoStream, new BufferedUpdates("global"), generation, startSeqNo);
     }
 
-    DocumentsWriterDeleteQueue(InfoStream infoStream, BufferedUpdates globalBufferedUpdates, long generation, long startSeqNo) {
+    DocumentsWriterDeleteQueue(InfoStream infoStream, BufferedUpdates globalBufferedUpdates, long generation,
+        long startSeqNo) {
         this.infoStream = infoStream;
         this.globalBufferedUpdates = globalBufferedUpdates;
         this.generation = generation;
@@ -144,6 +152,7 @@ final class DocumentsWriterDeleteQueue implements Accountable {
     /**
      * 添加一个删除的Term信息, 同时更新DWPE 里的 {@link DocumentsWriterPerThread#deleteSlice} 的tail节点为此term
      * invariant for document update
+     *
      * @param term
      * @param slice
      * @return
@@ -192,7 +201,8 @@ final class DocumentsWriterDeleteQueue implements Accountable {
              * and if the global slice is up-to-date
              * and if globalBufferedUpdates has changes
              */
-            return globalBufferedUpdates.any() || !globalSlice.isEmpty() || globalSlice.sliceTail != tail || tail.next != null;
+            return globalBufferedUpdates.any() || !globalSlice.isEmpty() || globalSlice.sliceTail != tail
+                || tail.next != null;
         } finally {
             globalBufferLock.unlock();
         }
@@ -211,7 +221,7 @@ final class DocumentsWriterDeleteQueue implements Accountable {
              * tail the next time we can get the lock!
              */
             try {
-                // 将 globalSlice 里的tail 更新为 当前属性 tail
+                // 判断 tail 是否被更新了 , 如果是 将 globalSlice 里的 sliceTail 更新为 当前属性 tail, 然后将tail添加到 globalBufferedUpdates中
                 if (updateSliceNoSeqNo(globalSlice)) {
                     globalSlice.apply(globalBufferedUpdates, BufferedUpdates.MAX_INT);
                 }
@@ -426,10 +436,12 @@ final class DocumentsWriterDeleteQueue implements Accountable {
             for (DocValuesUpdate update : item) {
                 switch (update.type) {
                     case NUMERIC:
-                        bufferedUpdates.addNumericUpdate(new NumericDocValuesUpdate(update.term, update.field, (Long)update.value), docIDUpto);
+                        bufferedUpdates.addNumericUpdate(
+                            new NumericDocValuesUpdate(update.term, update.field, (Long)update.value), docIDUpto);
                         break;
                     case BINARY:
-                        bufferedUpdates.addBinaryUpdate(new BinaryDocValuesUpdate(update.term, update.field, (BytesRef)update.value), docIDUpto);
+                        bufferedUpdates.addBinaryUpdate(
+                            new BinaryDocValuesUpdate(update.term, update.field, (BytesRef)update.value), docIDUpto);
                         break;
                     default:
                         throw new IllegalArgumentException(update.type + " DocValues updates not supported yet!");
@@ -497,7 +509,8 @@ final class DocumentsWriterDeleteQueue implements Accountable {
     }
 
     /**
-     * Inserts a gap in the sequence numbers.  This is used by IW during flush or commit to ensure any in-flight threads get sequence numbers
+     * Inserts a gap in the sequence numbers.  This is used by IW during flush or commit to ensure any in-flight threads
+     * get sequence numbers
      * inside the gap
      */
     public void skipSequenceNumbers(long jump) {

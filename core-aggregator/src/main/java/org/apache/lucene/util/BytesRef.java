@@ -160,6 +160,7 @@ public final class BytesRef implements Comparable<BytesRef>,Cloneable {
   /** Unsigned byte order comparison */
   @Override
   public int compareTo(BytesRef other) {
+    // 对比两个字节数字里第offset位 到 offset+length 位之间的大小
     return FutureArrays.compareUnsigned(this.bytes, this.offset, this.offset + this.length, 
                                         other.bytes, other.offset, other.offset + other.length);
   }
