@@ -16,7 +16,6 @@
  */
 package org.apache.lucene.index;
 
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -37,276 +36,284 @@ import org.apache.lucene.util.FutureObjects;
  * LeafReader implemented by codec APIs.
  */
 public abstract class CodecReader extends LeafReader implements Accountable {
-  
-  /** Sole constructor. (For invocation by subclass 
-   * constructors, typically implicit.) */
-  protected CodecReader() {}
-  
-  /** 
-   * Expert: retrieve thread-private StoredFieldsReader
-   * @lucene.internal 
-   */
-  public abstract StoredFieldsReader getFieldsReader();
-  
-  /** 
-   * Expert: retrieve thread-private TermVectorsReader
-   * @lucene.internal 
-   */
-  public abstract TermVectorsReader getTermVectorsReader();
-  
-  /** 
-   * Expert: retrieve underlying NormsProducer
-   * @lucene.internal 
-   */
-  public abstract NormsProducer getNormsReader();
-  
-  /** 
-   * Expert: retrieve underlying DocValuesProducer
-   * @lucene.internal 
-   */
-  public abstract DocValuesProducer getDocValuesReader();
-  
-  /**
-   * Expert: retrieve underlying FieldsProducer
-   * @lucene.internal
-   */
-  public abstract FieldsProducer getPostingsReader();
 
-  /**
-   * Expert: retrieve underlying PointsReader
-   * @lucene.internal
-   */
-  public abstract PointsReader getPointsReader();
-  
-  @Override
-  public final void document(int docID, StoredFieldVisitor visitor) throws IOException {
-    checkBounds(docID);
-    getFieldsReader().visitDocument(docID, visitor);
-  }
-  
-  @Override
-  public final Fields getTermVectors(int docID) throws IOException {
-    TermVectorsReader termVectorsReader = getTermVectorsReader();
-    if (termVectorsReader == null) {
-      return null;
-    }
-    checkBounds(docID);
-    return termVectorsReader.get(docID);
-  }
-  
-  private void checkBounds(int docID) {
-    FutureObjects.checkIndex(docID, maxDoc());
-  }
+    /**
+     * Sole constructor. (For invocation by subclass
+     * constructors, typically implicit.)
+     */
+    protected CodecReader() {}
 
-  @Override
-  public final Terms terms(String field) throws IOException {
-    //ensureOpen(); no; getPostingsReader calls this
-    // We could check the FieldInfo IndexOptions but there's no point since
-    //   PostingsReader will simply return null for fields that don't exist or that have no terms index.
-    return getPostingsReader().terms(field);
-  }
+    /**
+     * Expert: retrieve thread-private StoredFieldsReader
+     *
+     * @lucene.internal
+     */
+    public abstract StoredFieldsReader getFieldsReader();
 
-  // returns the FieldInfo that corresponds to the given field and type, or
-  // null if the field does not exist, or not indexed as the requested
-  // DovDocValuesType.
-  private FieldInfo getDVField(String field, DocValuesType type) {
-    FieldInfo fi = getFieldInfos().fieldInfo(field);
-    if (fi == null) {
-      // Field does not exist
-      return null;
-    }
-    if (fi.getDocValuesType() == DocValuesType.NONE) {
-      // Field was not indexed with doc values
-      return null;
-    }
-    if (fi.getDocValuesType() != type) {
-      // Field DocValues are different than requested type
-      return null;
+    /**
+     * Expert: retrieve thread-private TermVectorsReader
+     *
+     * @lucene.internal
+     */
+    public abstract TermVectorsReader getTermVectorsReader();
+
+    /**
+     * Expert: retrieve underlying NormsProducer
+     *
+     * @lucene.internal
+     */
+    public abstract NormsProducer getNormsReader();
+
+    /**
+     * Expert: retrieve underlying DocValuesProducer
+     *
+     * @lucene.internal
+     */
+    public abstract DocValuesProducer getDocValuesReader();
+
+    /**
+     * Expert: retrieve underlying FieldsProducer
+     *
+     * @lucene.internal
+     */
+    public abstract FieldsProducer getPostingsReader();
+
+    /**
+     * Expert: retrieve underlying PointsReader
+     *
+     * @lucene.internal
+     */
+    public abstract PointsReader getPointsReader();
+
+    @Override
+    public final void document(int docID, StoredFieldVisitor visitor) throws IOException {
+        checkBounds(docID);
+        getFieldsReader().visitDocument(docID, visitor);
     }
 
-    return fi;
-  }
-
-  @Override
-  public final NumericDocValues getNumericDocValues(String field) throws IOException {
-    ensureOpen();
-    FieldInfo fi = getDVField(field, DocValuesType.NUMERIC);
-    if (fi == null) {
-      return null;
-    }
-    return getDocValuesReader().getNumeric(fi);
-  }
-
-  @Override
-  public final BinaryDocValues getBinaryDocValues(String field) throws IOException {
-    ensureOpen();
-    FieldInfo fi = getDVField(field, DocValuesType.BINARY);
-    if (fi == null) {
-      return null;
-    }
-    return getDocValuesReader().getBinary(fi);
-  }
-
-  @Override
-  public final SortedDocValues getSortedDocValues(String field) throws IOException {
-    ensureOpen();
-    FieldInfo fi = getDVField(field, DocValuesType.SORTED);
-    if (fi == null) {
-      return null;
-    }
-    return getDocValuesReader().getSorted(fi);
-  }
-  
-  @Override
-  public final SortedNumericDocValues getSortedNumericDocValues(String field) throws IOException {
-    ensureOpen();
-
-    FieldInfo fi = getDVField(field, DocValuesType.SORTED_NUMERIC);
-    if (fi == null) {
-      return null;
-    }
-    return getDocValuesReader().getSortedNumeric(fi);
-  }
-
-  @Override
-  public final SortedSetDocValues getSortedSetDocValues(String field) throws IOException {
-    ensureOpen();
-    FieldInfo fi = getDVField(field, DocValuesType.SORTED_SET);
-    if (fi == null) {
-      return null;
-    }
-    return getDocValuesReader().getSortedSet(fi);
-  }
-  
-  @Override
-  public final NumericDocValues getNormValues(String field) throws IOException {
-    ensureOpen();
-    FieldInfo fi = getFieldInfos().fieldInfo(field);
-    if (fi == null || fi.hasNorms() == false) {
-      // Field does not exist or does not index norms
-      return null;
+    @Override
+    public final Fields getTermVectors(int docID) throws IOException {
+        TermVectorsReader termVectorsReader = getTermVectorsReader();
+        if (termVectorsReader == null) {
+            return null;
+        }
+        checkBounds(docID);
+        return termVectorsReader.get(docID);
     }
 
-    return getNormsReader().getNorms(fi);
-  }
-
-  @Override
-  public final PointValues getPointValues(String field) throws IOException {
-    ensureOpen();
-    FieldInfo fi = getFieldInfos().fieldInfo(field);
-    if (fi == null || fi.getPointDimensionCount() == 0) {
-      // Field does not exist or does not index points
-      return null;
+    private void checkBounds(int docID) {
+        FutureObjects.checkIndex(docID, maxDoc());
     }
 
-    return getPointsReader().getValues(field);
-  }
-
-  @Override
-  protected void doClose() throws IOException {
-  }
-  
-  @Override
-  public long ramBytesUsed() {
-    ensureOpen();
-    
-    // terms/postings
-    long ramBytesUsed = getPostingsReader().ramBytesUsed();
-    
-    // norms
-    if (getNormsReader() != null) {
-      ramBytesUsed += getNormsReader().ramBytesUsed();
-    }
-    
-    // docvalues
-    if (getDocValuesReader() != null) {
-      ramBytesUsed += getDocValuesReader().ramBytesUsed();
-    }
-    
-    // stored fields
-    if (getFieldsReader() != null) {
-      ramBytesUsed += getFieldsReader().ramBytesUsed();
-    }
-    
-    // term vectors
-    if (getTermVectorsReader() != null) {
-      ramBytesUsed += getTermVectorsReader().ramBytesUsed();
+    @Override
+    public final Terms terms(String field) throws IOException {
+        //ensureOpen(); no; getPostingsReader calls this
+        // We could check the FieldInfo IndexOptions but there's no point since
+        //   PostingsReader will simply return null for fields that don't exist or that have no terms index.
+        return getPostingsReader().terms(field);
     }
 
-    // points
-    if (getPointsReader() != null) {
-      ramBytesUsed += getPointsReader().ramBytesUsed();
-    }
-    
-    return ramBytesUsed;
-  }
-  
-  @Override
-  public Collection<Accountable> getChildResources() {
-    ensureOpen();
-    final List<Accountable> resources = new ArrayList<>(6);
-    
-    // terms/postings
-    resources.add(Accountables.namedAccountable("postings", getPostingsReader()));
-    
-    // norms
-    if (getNormsReader() != null) {
-      resources.add(Accountables.namedAccountable("norms", getNormsReader()));
-    }
-    
-    // docvalues
-    if (getDocValuesReader() != null) {
-      resources.add(Accountables.namedAccountable("docvalues", getDocValuesReader()));
-    }
-    
-    // stored fields
-    if (getFieldsReader() != null) {
-      resources.add(Accountables.namedAccountable("stored fields", getFieldsReader()));
+    // returns the FieldInfo that corresponds to the given field and type, or
+    // null if the field does not exist, or not indexed as the requested
+    // DovDocValuesType.
+    private FieldInfo getDVField(String field, DocValuesType type) {
+        FieldInfo fi = getFieldInfos().fieldInfo(field);
+        if (fi == null) {
+            // Field does not exist
+            return null;
+        }
+        if (fi.getDocValuesType() == DocValuesType.NONE) {
+            // Field was not indexed with doc values
+            return null;
+        }
+        if (fi.getDocValuesType() != type) {
+            // Field DocValues are different than requested type
+            return null;
+        }
+
+        return fi;
     }
 
-    // term vectors
-    if (getTermVectorsReader() != null) {
-      resources.add(Accountables.namedAccountable("term vectors", getTermVectorsReader()));
+    @Override
+    public final NumericDocValues getNumericDocValues(String field) throws IOException {
+        ensureOpen();
+        FieldInfo fi = getDVField(field, DocValuesType.NUMERIC);
+        if (fi == null) {
+            return null;
+        }
+        return getDocValuesReader().getNumeric(fi);
     }
 
-    // points
-    if (getPointsReader() != null) {
-      resources.add(Accountables.namedAccountable("points", getPointsReader()));
-    }
-    
-    return Collections.unmodifiableList(resources);
-  }
-
-  @Override
-  public void checkIntegrity() throws IOException {
-    ensureOpen();
-    
-    // terms/postings
-    getPostingsReader().checkIntegrity();
-    
-    // norms
-    if (getNormsReader() != null) {
-      getNormsReader().checkIntegrity();
-    }
-    
-    // docvalues
-    if (getDocValuesReader() != null) {
-      getDocValuesReader().checkIntegrity();
+    @Override
+    public final BinaryDocValues getBinaryDocValues(String field) throws IOException {
+        ensureOpen();
+        FieldInfo fi = getDVField(field, DocValuesType.BINARY);
+        if (fi == null) {
+            return null;
+        }
+        return getDocValuesReader().getBinary(fi);
     }
 
-    // stored fields
-    if (getFieldsReader() != null) {
-      getFieldsReader().checkIntegrity();
-    }
-    
-    // term vectors
-    if (getTermVectorsReader() != null) {
-      getTermVectorsReader().checkIntegrity();
+    @Override
+    public final SortedDocValues getSortedDocValues(String field) throws IOException {
+        ensureOpen();
+        FieldInfo fi = getDVField(field, DocValuesType.SORTED);
+        if (fi == null) {
+            return null;
+        }
+        return getDocValuesReader().getSorted(fi);
     }
 
-    // points
-    if (getPointsReader() != null) {
-      getPointsReader().checkIntegrity();
+    @Override
+    public final SortedNumericDocValues getSortedNumericDocValues(String field) throws IOException {
+        ensureOpen();
+
+        FieldInfo fi = getDVField(field, DocValuesType.SORTED_NUMERIC);
+        if (fi == null) {
+            return null;
+        }
+        return getDocValuesReader().getSortedNumeric(fi);
     }
-  }
+
+    @Override
+    public final SortedSetDocValues getSortedSetDocValues(String field) throws IOException {
+        ensureOpen();
+        FieldInfo fi = getDVField(field, DocValuesType.SORTED_SET);
+        if (fi == null) {
+            return null;
+        }
+        return getDocValuesReader().getSortedSet(fi);
+    }
+
+    @Override
+    public final NumericDocValues getNormValues(String field) throws IOException {
+        ensureOpen();
+        FieldInfo fi = getFieldInfos().fieldInfo(field);
+        if (fi == null || fi.hasNorms() == false) {
+            // Field does not exist or does not index norms
+            return null;
+        }
+
+        return getNormsReader().getNorms(fi);
+    }
+
+    @Override
+    public final PointValues getPointValues(String field) throws IOException {
+        ensureOpen();
+        FieldInfo fi = getFieldInfos().fieldInfo(field);
+        if (fi == null || fi.getPointDimensionCount() == 0) {
+            // Field does not exist or does not index points
+            return null;
+        }
+
+        return getPointsReader().getValues(field);
+    }
+
+    @Override
+    protected void doClose() throws IOException {
+    }
+
+    @Override
+    public long ramBytesUsed() {
+        ensureOpen();
+
+        // terms/postings
+        long ramBytesUsed = getPostingsReader().ramBytesUsed();
+
+        // norms
+        if (getNormsReader() != null) {
+            ramBytesUsed += getNormsReader().ramBytesUsed();
+        }
+
+        // docvalues
+        if (getDocValuesReader() != null) {
+            ramBytesUsed += getDocValuesReader().ramBytesUsed();
+        }
+
+        // stored fields
+        if (getFieldsReader() != null) {
+            ramBytesUsed += getFieldsReader().ramBytesUsed();
+        }
+
+        // term vectors
+        if (getTermVectorsReader() != null) {
+            ramBytesUsed += getTermVectorsReader().ramBytesUsed();
+        }
+
+        // points
+        if (getPointsReader() != null) {
+            ramBytesUsed += getPointsReader().ramBytesUsed();
+        }
+
+        return ramBytesUsed;
+    }
+
+    @Override
+    public Collection<Accountable> getChildResources() {
+        ensureOpen();
+        final List<Accountable> resources = new ArrayList<>(6);
+
+        // terms/postings
+        resources.add(Accountables.namedAccountable("postings", getPostingsReader()));
+
+        // norms
+        if (getNormsReader() != null) {
+            resources.add(Accountables.namedAccountable("norms", getNormsReader()));
+        }
+
+        // docvalues
+        if (getDocValuesReader() != null) {
+            resources.add(Accountables.namedAccountable("docvalues", getDocValuesReader()));
+        }
+
+        // stored fields
+        if (getFieldsReader() != null) {
+            resources.add(Accountables.namedAccountable("stored fields", getFieldsReader()));
+        }
+
+        // term vectors
+        if (getTermVectorsReader() != null) {
+            resources.add(Accountables.namedAccountable("term vectors", getTermVectorsReader()));
+        }
+
+        // points
+        if (getPointsReader() != null) {
+            resources.add(Accountables.namedAccountable("points", getPointsReader()));
+        }
+
+        return Collections.unmodifiableList(resources);
+    }
+
+    @Override
+    public void checkIntegrity() throws IOException {
+        ensureOpen();
+
+        // terms/postings
+        getPostingsReader().checkIntegrity();
+
+        // norms
+        if (getNormsReader() != null) {
+            getNormsReader().checkIntegrity();
+        }
+
+        // docvalues
+        if (getDocValuesReader() != null) {
+            getDocValuesReader().checkIntegrity();
+        }
+
+        // stored fields
+        if (getFieldsReader() != null) {
+            getFieldsReader().checkIntegrity();
+        }
+
+        // term vectors
+        if (getTermVectorsReader() != null) {
+            getTermVectorsReader().checkIntegrity();
+        }
+
+        // points
+        if (getPointsReader() != null) {
+            getPointsReader().checkIntegrity();
+        }
+    }
 }

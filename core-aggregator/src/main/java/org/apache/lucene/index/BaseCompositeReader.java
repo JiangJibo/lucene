@@ -49,7 +49,13 @@ import java.util.List;
  */
 public abstract class BaseCompositeReader<R extends IndexReader> extends CompositeReader {
 
+    /**
+     * {@link CodecReader}
+     */
     private final R[] subReaders;
+    /**
+     * 每个segment里第一个doc的全局起始id,比如第一个segment的maxDocId=20,第二个的 firstDocId = 0 + 20
+     */
     private final int[] starts;       // 1st docno for each reader
     private final int maxDoc;
     private final int numDocs;
@@ -86,12 +92,14 @@ public abstract class BaseCompositeReader<R extends IndexReader> extends Composi
             if (this instanceof DirectoryReader) {
                 // A single index has too many documents and it is corrupt (IndexWriter prevents this as of LUCENE-6299)
                 throw new CorruptIndexException(
-                    "Too many documents: an index cannot exceed " + IndexWriter.getActualMaxDocs() + " but readers have total maxDoc=" + maxDoc,
+                    "Too many documents: an index cannot exceed " + IndexWriter.getActualMaxDocs()
+                        + " but readers have total maxDoc=" + maxDoc,
                     Arrays.toString(subReaders));
             } else {
                 // Caller is building a MultiReader and it has too many documents; this case is just illegal arguments:
                 throw new IllegalArgumentException(
-                    "Too many documents: composite IndexReaders cannot exceed " + IndexWriter.getActualMaxDocs() + " but readers have total maxDoc=" + maxDoc);
+                    "Too many documents: composite IndexReaders cannot exceed " + IndexWriter.getActualMaxDocs()
+                        + " but readers have total maxDoc=" + maxDoc);
             }
         }
 
@@ -122,7 +130,10 @@ public abstract class BaseCompositeReader<R extends IndexReader> extends Composi
     @Override
     public final void document(int docID, StoredFieldVisitor visitor) throws IOException {
         ensureOpen();
+        // 找到此docID位于第几个segment
         final int i = readerIndex(docID);                          // find subreader num
+        // docID - starts[i]：每个segment里的docID都是从0开始的，所以讲docID减去firstDocID就是在此segment中的实际docID
+        // subReaders: CodecReader
         subReaders[i].document(docID - starts[i], visitor);    // dispatch to subreader
     }
 
@@ -197,7 +208,8 @@ public abstract class BaseCompositeReader<R extends IndexReader> extends Composi
      */
     protected final int readerIndex(int docID) {
         if (docID < 0 || docID >= maxDoc) {
-            throw new IllegalArgumentException("docID must be >= 0 and < maxDoc=" + maxDoc + " (got docID=" + docID + ")");
+            throw new IllegalArgumentException(
+                "docID must be >= 0 and < maxDoc=" + maxDoc + " (got docID=" + docID + ")");
         }
         return ReaderUtil.subIndex(docID, this.starts);
     }

@@ -2,11 +2,11 @@ package org.apache.lucene.queryparser.bob;
 
 import java.io.IOException;
 import java.nio.file.Paths;
-
-import javax.sound.sampled.SourceDataLine;
+import java.util.Arrays;
+import java.util.function.Consumer;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.payloads.DelimitedPayloadTokenFilter;
+import org.apache.lucene.analysis.hunspell.Dictionary;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -17,19 +17,21 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.IndexReaderContext;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.store.SimpleFSDirectory;
-import org.apache.lucene.util.BytesRef;
+import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -41,6 +43,13 @@ import static org.junit.Assert.assertEquals;
  * @create 2019-05-08 15:23
  */
 public class LuceneUsageExample {
+
+    private Directory dictionary;
+
+    @Before
+    public void init() throws IOException {
+        dictionary = new SimpleFSDirectory(Paths.get("D:\\lucene-temp"));
+    }
 
     @Test
     public void testUseLucene() throws IOException, ParseException {
@@ -82,7 +91,7 @@ public class LuceneUsageExample {
         IndexWriterConfig iwc = new IndexWriterConfig(new StandardAnalyzer());
         iwc.setUseCompoundFile(false);
 
-        IndexWriter writer = new IndexWriter(new SimpleFSDirectory(Paths.get("D:\\lucene-temp")), iwc);
+        IndexWriter writer = new IndexWriter(dictionary, iwc);
 
         // field必须具备索引或者存储中的一个特性,如果两个都不要,那么这个属性就没用了
         FieldType ft1 = new FieldType();
@@ -118,9 +127,24 @@ public class LuceneUsageExample {
     @Test
     public void testReadDocument() throws IOException {
         // BaseCompositeReader, StandardDirectoryReader
-        IndexReader indexReader = DirectoryReader.open(new SimpleFSDirectory(Paths.get("D:\\lucene-temp")));
+        IndexReader indexReader = DirectoryReader.open(dictionary);
         Document document = indexReader.document(1);
         System.out.println(document.getField("content"));
+    }
+
+    /**
+     * 测试Term Query
+     */
+    @Test
+    public void testSearch() throws IOException {
+        IndexSearcher indexSearcher = new IndexSearcher(DirectoryReader.open(dictionary));
+        TermQuery termQuery = new TermQuery(new Term("title", "java"));
+        TopDocs topDocs = indexSearcher.search(termQuery, 2);
+        ScoreDoc[] scoreDocs = topDocs.scoreDocs;
+        for (ScoreDoc scoreDoc : scoreDocs) {
+            Document document = indexSearcher.doc(scoreDoc.doc);
+            System.out.println(document.toString());
+        }
     }
 
 }
