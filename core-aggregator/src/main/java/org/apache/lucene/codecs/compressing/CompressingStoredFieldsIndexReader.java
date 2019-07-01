@@ -35,6 +35,8 @@ import org.apache.lucene.util.RamUsageEstimator;
 import org.apache.lucene.util.packed.PackedInts;
 
 /**
+ * fdx文件存储一个个的Block，每个Block管理着一批Chunk，通过docID读取到document需要完成Segment、Block、Chunk、document四级查询，
+ * 引入了LZ4算法对fdt的chunkdocs进行了实时压缩
  * Random-access reader for {@link CompressingStoredFieldsIndexWriter}.
  *
  * @lucene.internal
@@ -45,9 +47,21 @@ public final class CompressingStoredFieldsIndexReader implements Cloneable, Acco
         CompressingStoredFieldsIndexReader.class);
 
     final int maxDoc;
+    /**
+     * 每个block里第一个doc的ID
+     */
     final int[] docBases;
+
+    /**
+     * 每个block的起始位置, 也就是第一个doc相关数据的起始位置
+     */
     final long[] startPointers;
+
+    /**
+     * chunk里doc数量
+     */
     final int[] avgChunkDocs;
+
     final long[] avgChunkSizes;
     final PackedInts.Reader[] docBasesDeltas; // delta from the avg
     final PackedInts.Reader[] startPointersDeltas; // delta from the avg
@@ -68,6 +82,7 @@ public final class CompressingStoredFieldsIndexReader implements Cloneable, Acco
         int blockCount = 0;
 
         for (; ; ) {
+            // chunk数量, 索引文件的第一个int
             final int numChunks = fieldsIndexIn.readVInt();
             if (numChunks == 0) {
                 break;
@@ -82,8 +97,9 @@ public final class CompressingStoredFieldsIndexReader implements Cloneable, Acco
                 startPointersDeltas = Arrays.copyOf(startPointersDeltas, newSize);
             }
 
-            // doc bases
+            // doc bases block个数
             docBases[blockCount] = fieldsIndexIn.readVInt();
+
             avgChunkDocs[blockCount] = fieldsIndexIn.readVInt();
             final int bitsPerDocBase = fieldsIndexIn.readVInt();
             if (bitsPerDocBase > 32) {
@@ -113,6 +129,12 @@ public final class CompressingStoredFieldsIndexReader implements Cloneable, Acco
         this.startPointersDeltas = Arrays.copyOf(startPointersDeltas, blockCount);
     }
 
+    /**
+     * 确认docID所在的block
+     *
+     * @param docID
+     * @return
+     */
     private int block(int docID) {
         int lo = 0, hi = docBases.length - 1;
         while (lo <= hi) {
@@ -141,6 +163,13 @@ public final class CompressingStoredFieldsIndexReader implements Cloneable, Acco
         return expected + delta;
     }
 
+    /**
+     * 定位在block中chunk的位置
+     *
+     * @param block
+     * @param relativeDoc
+     * @return
+     */
     private int relativeChunk(int block, int relativeDoc) {
         int lo = 0, hi = docBasesDeltas[block].size() - 1;
         while (lo <= hi) {
@@ -158,7 +187,7 @@ public final class CompressingStoredFieldsIndexReader implements Cloneable, Acco
     }
 
     /**
-     * 获取doc的起始指针
+     * 获取doc所在的chunk在fdt文件中的起始位置
      *
      * @param docID
      * @return
@@ -167,7 +196,9 @@ public final class CompressingStoredFieldsIndexReader implements Cloneable, Acco
         if (docID < 0 || docID >= maxDoc) {
             throw new IllegalArgumentException("docID out of range [0-" + maxDoc + "]: " + docID);
         }
+        // 定位block的序号
         final int block = block(docID);
+        // 定位block中chunk的序号
         final int relativeChunk = relativeChunk(block, docID - docBases[block]);
         return startPointers[block] + relativeStartPointer(block, relativeChunk);
     }
