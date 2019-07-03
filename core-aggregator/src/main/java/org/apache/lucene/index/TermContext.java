@@ -102,6 +102,7 @@ public final class TermContext {
                 if (termsEnum.seekExact(bytes)) {
                     final TermState termState = termsEnum.termState();
                     //if (DEBUG) System.out.println("    found");
+                    // termsEnum：SegmentTermsEnum
                     perReaderTermState.register(termState, ctx.ord, termsEnum.docFreq(), termsEnum.totalTermFreq());
                 }
             }

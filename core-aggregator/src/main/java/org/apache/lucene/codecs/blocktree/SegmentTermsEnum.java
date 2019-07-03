@@ -1041,9 +1041,9 @@ final class SegmentTermsEnum extends TermsEnum {
     @Override
     public int docFreq() throws IOException {
         assert !eof;
-        //if (DEBUG) System.out.println("BTR.docFreq");
+        if (true) System.out.println("BTR.docFreq");
         currentFrame.decodeMetaData();
-        //if (DEBUG) System.out.println("  return " + currentFrame.state.docFreq);
+        if (true) System.out.println("  return " + currentFrame.state.docFreq);
         return currentFrame.state.docFreq;
     }
 
