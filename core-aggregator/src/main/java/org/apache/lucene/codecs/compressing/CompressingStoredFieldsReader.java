@@ -46,6 +46,7 @@ import java.util.Collections;
 import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.StoredFieldsReader;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.document.DocumentStoredFieldVisitor;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfos;
@@ -59,6 +60,7 @@ import org.apache.lucene.store.DataInput;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.Accountables;
 import org.apache.lucene.util.ArrayUtil;
@@ -71,6 +73,8 @@ import org.apache.lucene.util.packed.PackedInts;
 /**
  * {@link StoredFieldsReader} impl for {@link CompressingStoredFieldsFormat}.
  *
+ * fdt文件存储着一个个的Chunk；fdx文件存储一个个的Block，每个Block管理着一批Chunk 。
+ *
  * @lucene.experimental
  */
 public final class CompressingStoredFieldsReader extends StoredFieldsReader {
@@ -79,6 +83,9 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
     private final FieldInfos fieldInfos;
     private final CompressingStoredFieldsIndexReader indexReader;
     private final long maxPointer;
+    /**
+     * .fdt文件读取
+     */
     private final IndexInput fieldsStream;
     private final int chunkSize;
     private final int packedIntsVersion;
@@ -209,6 +216,15 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
         }
     }
 
+    /**
+     * 读取Field数据
+     *
+     * @param in
+     * @param visitor {@link DocumentStoredFieldVisitor}
+     * @param info
+     * @param bits
+     * @throws IOException
+     */
     private static void readField(DataInput in, StoredFieldVisitor visitor, FieldInfo info, int bits)
         throws IOException {
         switch (bits & TYPE_MASK) {
@@ -241,10 +257,18 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
         }
     }
 
+    /**
+     * 跳过某个Field
+     *
+     * @param in
+     * @param bits
+     * @throws IOException
+     */
     private static void skipField(DataInput in, int bits) throws IOException {
         switch (bits & TYPE_MASK) {
             case BYTE_ARR:
             case STRING:
+                // Field是字符串,第一个int存储长度, 跳过这个长度
                 final int length = in.readVInt();
                 in.skipBytes(length);
                 break;
@@ -367,15 +391,29 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
 
     /**
      * Keeps state about the current block of documents.
+     * fdt文件存储着一个个的Chunk；fdx文件存储一个个的Block，每个Block管理着一批Chunk 。
      */
     private class BlockState {
 
-        private int docBase, chunkDocs;
+        /**
+         * block里第一个doc的全局docID
+         */
+        private int docBase;
+        /**
+         * 当前chunk的doc数量
+         */
+        private int chunkDocs;
 
         // whether the block has been sliced, this happens for large documents
         private boolean sliced;
 
+        /**
+         * 每个doc的数据的起始位置
+         */
         private int[] offsets = IntsRef.EMPTY_INTS;
+        /**
+         * 每个doc的存储的Field个数
+         */
         private int[] numStoredFields = IntsRef.EMPTY_INTS;
 
         // the start pointer at which you can read the compressed documents
@@ -384,6 +422,12 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
         private final BytesRef spare = new BytesRef();
         private final BytesRef bytes = new BytesRef();
 
+        /**
+         * 验证docID是否在当前block里
+         *
+         * @param docID
+         * @return
+         */
         boolean contains(int docID) {
             return docID >= docBase && docID < docBase + chunkDocs;
         }
@@ -409,33 +453,47 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
             }
         }
 
+        /**
+         * 压缩算法写入block
+         * {@link org.apache.lucene.codecs.lucene50.ForUtil#writeBlock(int[], byte[], IndexOutput)}
+         *
+         * @param docID
+         * @throws IOException
+         */
         private void doReset(int docID) throws IOException {
+            // fdt文件里第一个docID
             docBase = fieldsStream.readVInt();
             final int token = fieldsStream.readVInt();
+            // 当前block里所有的chunk的数量 == token/2, token末位标识sliced
             chunkDocs = token >>> 1;
-            if (contains(docID) == false
-                || docBase + chunkDocs > numDocs) {
+            if (contains(docID) == false || docBase + chunkDocs > numDocs) {
                 throw new CorruptIndexException("Corrupted: docID=" + docID
                     + ", docBase=" + docBase + ", chunkDocs=" + chunkDocs
                     + ", numDocs=" + numDocs, fieldsStream);
             }
-
+            // 当前block是否被拆分,如果某个document很大是可能的
             sliced = (token & 1) != 0;
 
+            // 将offsets增长到一定长度,以便存储每个doc的起始位置。offset[0] = 0, offset[1]=第一个doc的起始位置
             offsets = ArrayUtil.grow(offsets, chunkDocs + 1);
+            // 每个doc的存储的Field个数
             numStoredFields = ArrayUtil.grow(numStoredFields, chunkDocs);
 
+            // 如果只有一个doc
             if (chunkDocs == 1) {
                 numStoredFields[0] = fieldsStream.readVInt();
                 offsets[1] = fieldsStream.readVInt();
             } else {
-                // Number of stored fields per document
+                // Number of stored fields per document。 每个document存储了多少个Field, 这个数值用多少bit表示, 不能超过32,
+                // 也就是Integer的上限, 压缩过的
                 final int bitsPerStoredFields = fieldsStream.readVInt();
                 if (bitsPerStoredFields == 0) {
                     Arrays.fill(numStoredFields, 0, chunkDocs, fieldsStream.readVInt());
                 } else if (bitsPerStoredFields > 31) {
                     throw new CorruptIndexException("bitsPerStoredFields=" + bitsPerStoredFields, fieldsStream);
                 } else {
+                    // 取 chunkDocs * bitsPerStoredFields 位, 每 bitsPerStoredFields 就代表每个doc存储的Field个数
+                    // 详情见 ForUtil#writeBlock(......)
                     final PackedInts.ReaderIterator it = PackedInts.getReaderIteratorNoHeader(fieldsStream,
                         PackedInts.Format.PACKED, packedIntsVersion, chunkDocs, bitsPerStoredFields, 1);
                     for (int i = 0; i < chunkDocs; ++i) {
@@ -443,6 +501,7 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
                     }
                 }
 
+                // 同样的形式来获取每个doc的的数据偏移量, 是增量形式
                 // The stream encodes the length of each document and we decode
                 // it into a list of monotonically increasing offsets
                 final int bitsPerLength = fieldsStream.readVInt();
@@ -456,9 +515,13 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
                 } else {
                     final PackedInts.ReaderIterator it = PackedInts.getReaderIteratorNoHeader(fieldsStream,
                         PackedInts.Format.PACKED, packedIntsVersion, chunkDocs, bitsPerLength, 1);
+                    // 因为存储的是增量形式,所以需要还原成正常的, 比如存储的数据: 0 61 27 6
+                    // 比如存储的数据: 0 61 27 6, 那么 offsets 里应该存 0 61 88 94 0 0 0 0
                     for (int i = 0; i < chunkDocs; ++i) {
+                        // 第0位offset默认0, 第一个doc的数据起始位就是0; 最后一位存当前chunk的长度上限
                         offsets[i + 1] = (int)it.next();
                     }
+                    // 还原delta
                     for (int i = 0; i < chunkDocs; ++i) {
                         offsets[i + 1] += offsets[i];
                     }
@@ -479,6 +542,7 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
             startPointer = fieldsStream.getFilePointer();
 
             if (merging) {
+                // offsets 最后一位存长度上限, 也就是仅仅解压当前chunk
                 final int totalLength = offsets[chunkDocs];
                 // decompress eagerly
                 if (sliced) {
@@ -509,11 +573,15 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
             if (contains(docID) == false) {
                 throw new IllegalArgumentException();
             }
-
+            // docID在block里的ID偏移量
             final int index = docID - docBase;
+            // docID代表的数据位置
             final int offset = offsets[index];
+            // docID代表的数据长度
             final int length = offsets[index + 1] - offset;
+            // 当前chunk的数据总长度
             final int totalLength = offsets[chunkDocs];
+            // 当前doc存了几个Field
             final int numStoredFields = this.numStoredFields[index];
 
             final DataInput documentInput;
@@ -521,7 +589,7 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
                 // empty
                 documentInput = new ByteArrayDataInput();
             } else if (merging) {
-                // already decompressed
+                // already decompressed 已经解压了
                 documentInput = new ByteArrayDataInput(bytes.bytes, bytes.offset + offset, length);
             } else if (sliced) {
                 fieldsStream.seek(startPointer);
@@ -564,6 +632,7 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
 
                 };
             } else {
+                // Sets current position in this file, where the next read will occur, 就是制定下次查询的位置
                 fieldsStream.seek(startPointer);
                 decompressor.decompress(fieldsStream, totalLength, offset, length, bytes);
                 assert bytes.length == length;
@@ -597,15 +666,18 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
         throws IOException {
         // 找到序列化过的Document
         final SerializedDocument doc = document(docID);
-
+        // 按照存储了的Field个数
         for (int fieldIDX = 0; fieldIDX < doc.numStoredFields; fieldIDX++) {
             final long infoAndBits = doc.in.readVLong();
+            // infoAndBits >>> 3  得到Field类型序号
             final int fieldNumber = (int)(infoAndBits >>> TYPE_BITS);
+            // 根据Field类型序号获取FieldInfo
             final FieldInfo fieldInfo = fieldInfos.fieldInfo(fieldNumber);
-
+            // infoAndBits & 0111 得到类型
             final int bits = (int)(infoAndBits & TYPE_MASK);
+            // bits一定要在0 1 2 3 4 5 之间, lucene数据只有这5个类型
             assert bits <= NUMERIC_DOUBLE : "bits=" + Integer.toHexString(bits);
-
+            // 查询时是否需要做个Field , DocumentStoredFieldVisitor
             switch (visitor.needsField(fieldInfo)) {
                 case YES:
                     readField(doc.in, visitor, fieldInfo, bits);

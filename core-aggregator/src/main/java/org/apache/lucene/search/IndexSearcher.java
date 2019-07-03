@@ -404,7 +404,8 @@ public class IndexSearcher {
         }
 
         // general case: create a collecor and count matches
-        final CollectorManager<TotalHitCountCollector, Integer> collectorManager = new CollectorManager<TotalHitCountCollector, Integer>() {
+        final CollectorManager<TotalHitCountCollector, Integer> collectorManager
+            = new CollectorManager<TotalHitCountCollector, Integer>() {
 
             @Override
             public TotalHitCountCollector newCollector() throws IOException {
@@ -445,7 +446,8 @@ public class IndexSearcher {
 
         final int cappedNumHits = Math.min(numHits, limit);
 
-        final CollectorManager<TopScoreDocCollector, TopDocs> manager = new CollectorManager<TopScoreDocCollector, TopDocs>() {
+        final CollectorManager<TopScoreDocCollector, TopDocs> manager
+            = new CollectorManager<TopScoreDocCollector, TopDocs>() {
 
             @Override
             public TopScoreDocCollector newCollector() throws IOException {
@@ -508,7 +510,7 @@ public class IndexSearcher {
      * {@link BooleanQuery#getMaxClauseCount()} clauses.
      */
     public TopFieldDocs search(Query query, int n,
-                               Sort sort, boolean doDocScores, boolean doMaxScore) throws IOException {
+        Sort sort, boolean doDocScores, boolean doMaxScore) throws IOException {
         return searchAfter(null, query, n, sort, doDocScores, doMaxScore);
     }
 
@@ -559,7 +561,7 @@ public class IndexSearcher {
      * {@link BooleanQuery#getMaxClauseCount()} clauses.
      */
     public TopFieldDocs searchAfter(ScoreDoc after, Query query, int numHits, Sort sort,
-                                    boolean doDocScores, boolean doMaxScore) throws IOException {
+        boolean doDocScores, boolean doMaxScore) throws IOException {
         if (after != null && !(after instanceof FieldDoc)) {
             // TODO: if we fix type safety of TopFieldDocs we can
             // remove this
@@ -569,7 +571,7 @@ public class IndexSearcher {
     }
 
     private TopFieldDocs searchAfter(FieldDoc after, Query query, int numHits, Sort sort,
-                                     boolean doDocScores, boolean doMaxScore) throws IOException {
+        boolean doDocScores, boolean doMaxScore) throws IOException {
         final int limit = Math.max(1, reader.maxDoc());
         if (after != null && after.doc >= limit) {
             throw new IllegalArgumentException("after.doc exceeds the number of documents in the reader: after.doc="
@@ -578,13 +580,15 @@ public class IndexSearcher {
         final int cappedNumHits = Math.min(numHits, limit);
         final Sort rewrittenSort = sort.rewrite(this);
 
-        final CollectorManager<TopFieldCollector, TopFieldDocs> manager = new CollectorManager<TopFieldCollector, TopFieldDocs>() {
+        final CollectorManager<TopFieldCollector, TopFieldDocs> manager
+            = new CollectorManager<TopFieldCollector, TopFieldDocs>() {
 
             @Override
             public TopFieldCollector newCollector() throws IOException {
                 final boolean fillFields = true;
                 // TODO: don't pay the price for accurate hit counts by default
-                return TopFieldCollector.create(rewrittenSort, cappedNumHits, after, fillFields, doDocScores, doMaxScore, true);
+                return TopFieldCollector.create(rewrittenSort, cappedNumHits, after, fillFields, doDocScores,
+                    doMaxScore, true);
             }
 
             @Override
@@ -678,6 +682,7 @@ public class IndexSearcher {
         // threaded...?  the Collector could be sync'd?
         // always use single thread:
         for (LeafReaderContext ctx : leaves) { // search each subreader
+            //
             final LeafCollector leafCollector;
             try {
                 leafCollector = collector.getLeafCollector(ctx);
@@ -752,6 +757,7 @@ public class IndexSearcher {
     }
 
     /**
+     * 创建一个标准化的权重
      * Creates a normalized weight for a top-level {@link Query}.
      * The query is rewritten by this method and {@link Query#createWeight} called,
      * afterwards the {@link Weight} is normalized. The returned {@code Weight}

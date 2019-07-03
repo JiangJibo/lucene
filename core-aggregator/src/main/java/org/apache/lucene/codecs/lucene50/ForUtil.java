@@ -109,9 +109,12 @@ final class ForUtil {
                 BLOCK_SIZE, bpv, acceptableOverheadRatio);
             assert formatAndBits.format.isSupported(formatAndBits.bitsPerValue);
             assert formatAndBits.bitsPerValue <= 32;
-            encodedSizes[bpv] = encodedSize(formatAndBits.format, PackedInts.VERSION_CURRENT, formatAndBits.bitsPerValue);
-            encoders[bpv] = PackedInts.getEncoder(formatAndBits.format, PackedInts.VERSION_CURRENT, formatAndBits.bitsPerValue);
-            decoders[bpv] = PackedInts.getDecoder(formatAndBits.format, PackedInts.VERSION_CURRENT, formatAndBits.bitsPerValue);
+            encodedSizes[bpv] = encodedSize(formatAndBits.format, PackedInts.VERSION_CURRENT,
+                formatAndBits.bitsPerValue);
+            encoders[bpv] = PackedInts.getEncoder(formatAndBits.format, PackedInts.VERSION_CURRENT,
+                formatAndBits.bitsPerValue);
+            decoders[bpv] = PackedInts.getDecoder(formatAndBits.format, PackedInts.VERSION_CURRENT,
+                formatAndBits.bitsPerValue);
             iterations[bpv] = computeIterations(decoders[bpv]);
 
             out.writeVInt(formatAndBits.format.getId() << 5 | (formatAndBits.bitsPerValue - 1));
@@ -147,6 +150,8 @@ final class ForUtil {
 
     /**
      * Write a block of data (<code>For</code> format).
+     * 压缩数据解压实现, 详情看如下函数：
+     * {@link org.apache.lucene.codecs.compressing.CompressingStoredFieldsReader.BlockState#doReset(int)}
      *
      * @param data    the data to write
      * @param encoded a buffer to use to encode data , new Byte[128*4], 一个int占4个字节, 一个block=128个int
@@ -164,6 +169,7 @@ final class ForUtil {
         final int numBits = bitsRequired(data);
         // 数据不能超过32位
         assert numBits > 0 && numBits <= 32 : numBits;
+        // 多少位的encoder
         final PackedInts.Encoder encoder = encoders[numBits];
         final int iters = iterations[numBits];
         assert iters * encoder.byteValueCount() >= BLOCK_SIZE;
@@ -172,7 +178,8 @@ final class ForUtil {
 
         // 写入每个数据要占多少位
         out.writeByte((byte)numBits);
-        // 编码压缩
+        // 编码压缩，将data里的每个数据编码后依次放入encoded里
+        // 每个数据编码后所占位数相等,都是numBits
         encoder.encode(data, 0, encoded, 0, iters);
         out.writeBytes(encoded, encodedSize);
     }

@@ -170,7 +170,8 @@ final class BulkOperationPackedSingleBlock extends BulkOperation {
     }
 
     /**
-     * 编码压缩
+     * 编码压缩, 按顺序将数据压缩,然后依次写入 blocks 里
+     * 每个数据编码后所占的位数是相等的
      *
      * @param values       the values buffer
      * @param valuesOffset the offset where to start reading values
