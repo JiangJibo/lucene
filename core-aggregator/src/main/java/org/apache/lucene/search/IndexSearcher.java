@@ -828,6 +828,7 @@ public class IndexSearcher {
 
     /**
      * Returns {@link CollectionStatistics} for a field.
+     * 收集整个Field里的总量数据
      *
      * This can be overridden for example, to return a field's statistics
      * across a distributed collection.
@@ -847,8 +848,11 @@ public class IndexSearcher {
             sumTotalTermFreq = 0;
             sumDocFreq = 0;
         } else {
+            //field里的总doc数
             docCount = terms.getDocCount();
+            // field里所有term出现的次数的总数，一个term可能出现多次
             sumTotalTermFreq = terms.getSumTotalTermFreq();
+            // field 每个doc里的有效term的总数,一个term出现多少算一个
             sumDocFreq = terms.getSumDocFreq();
         }
 

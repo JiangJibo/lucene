@@ -74,7 +74,11 @@ public class TermQuery extends Query {
             final CollectionStatistics collectionStats;
             final TermStatistics termStats;
             if (needsScores) {
+                // 收集当前field里的所有term相关数据的总和,比如
+                // d里所有term出现的次数的总数，一个term可能出现多次
+                // 每个doc里的有效term的总数,一个term出现多少算一个
                 collectionStats = searcher.collectionStatistics(term.field());
+                // 当前term的数据,比如出现在多少个doc里, 总共出现的次数
                 termStats = searcher.termStatistics(term, termStates);
             } else {
                 // we do not need the actual stats, use fake stats with docFreq=maxDoc and ttf=-1
