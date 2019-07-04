@@ -34,8 +34,17 @@ public final class TermContext {
 
     // Important: do NOT keep hard references to index readers
     private final Object topReaderContextIdentity;
+    /**
+     * 每个segment对应一个TermState
+     */
     private final TermState[] states;
+    /**
+     * 当前term出现的doc次数
+     */
     private int docFreq;
+    /**
+     * 当前term在所有的doc中出现的次数
+     */
     private long totalTermFreq;
 
     //public static boolean DEBUG = BlockTreeTermsWriter.DEBUG;
@@ -103,6 +112,7 @@ public final class TermContext {
                     final TermState termState = termsEnum.termState();
                     //if (DEBUG) System.out.println("    found");
                     // termsEnum：SegmentTermsEnum
+                    // 累计term出现次数
                     perReaderTermState.register(termState, ctx.ord, termsEnum.docFreq(), termsEnum.totalTermFreq());
                 }
             }
@@ -126,6 +136,7 @@ public final class TermContext {
      */
     public void register(TermState state, final int ord, final int docFreq, final long totalTermFreq) {
         register(state, ord);
+        // 累计term出现次数
         accumulateStatistics(docFreq, totalTermFreq);
     }
 
@@ -144,11 +155,14 @@ public final class TermContext {
     }
 
     /**
+     * 累计term出现次数
      * Expert: Accumulate term statistics.
      */
     public void accumulateStatistics(final int docFreq, final long totalTermFreq) {
         this.docFreq += docFreq;
-        if (this.totalTermFreq >= 0 && totalTermFreq >= 0) { this.totalTermFreq += totalTermFreq; } else {
+        if (this.totalTermFreq >= 0 && totalTermFreq >= 0) {
+            this.totalTermFreq += totalTermFreq;
+        } else {
             this.totalTermFreq = -1;
         }
     }

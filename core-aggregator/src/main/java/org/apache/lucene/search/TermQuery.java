@@ -30,6 +30,7 @@ import org.apache.lucene.index.TermContext;
 import org.apache.lucene.index.TermState;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.search.similarities.Similarity.SimScorer;
 
@@ -43,13 +44,25 @@ public class TermQuery extends Query {
     private final TermContext perReaderTermState;
 
     final class TermWeight extends Weight {
+        /**
+         * {@link BM25Similarity}
+         */
         private final Similarity similarity;
         private final Similarity.SimWeight stats;
+        /**
+         * 持有当前term出现在doc的次数和总的次数
+         */
         private final TermContext termStates;
         private final boolean needsScores;
 
-        public TermWeight(IndexSearcher searcher, boolean needsScores,
-            float boost, TermContext termStates) throws IOException {
+        /**
+         * @param searcher
+         * @param needsScores 是否要打分
+         * @param boost
+         * @param termStates
+         * @throws IOException
+         */
+        public TermWeight(IndexSearcher searcher, boolean needsScores, float boost, TermContext termStates) throws IOException {
             super(TermQuery.this);
             if (needsScores && termStates == null) {
                 throw new IllegalStateException("termStates are required when scores are needed");
@@ -196,8 +209,8 @@ public class TermQuery extends Query {
         final TermContext termState;
         if (perReaderTermState == null || perReaderTermState.wasBuiltFor(context) == false) {
             if (needsScores) {
-                // make TermQuery single-pass if we don't have a PRTS or if the context
-                // differs!
+                // make TermQuery single-pass if we don't have a PRTS or if the context differs!
+                // 解析term出现的doc次数和总的次数, 放入TermContext
                 termState = TermContext.build(context, term);
             } else {
                 // do not compute the term state, this will help save seeks in the terms

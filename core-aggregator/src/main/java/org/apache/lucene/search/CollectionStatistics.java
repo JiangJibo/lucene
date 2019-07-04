@@ -26,8 +26,17 @@ import org.apache.lucene.index.Terms;       // javadocs
  */
 public class CollectionStatistics {
   private final String field;
+  /**
+   * 最大的docID
+   */
   private final long maxDoc;
+  /**
+   * 总共出现的doc个数
+   */
   private final long docCount;
+  /**
+   * 出现的次数累计
+   */
   private final long sumTotalTermFreq;
   private final long sumDocFreq;
   

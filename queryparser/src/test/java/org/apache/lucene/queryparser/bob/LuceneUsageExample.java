@@ -138,7 +138,7 @@ public class LuceneUsageExample {
     @Test
     public void testSearch() throws IOException {
         IndexSearcher indexSearcher = new IndexSearcher(DirectoryReader.open(dictionary));
-        TermQuery termQuery = new TermQuery(new Term("title", "java"));
+        TermQuery termQuery = new TermQuery(new Term("content", "java"));
         TopDocs topDocs = indexSearcher.search(termQuery, 2);
         ScoreDoc[] scoreDocs = topDocs.scoreDocs;
         for (ScoreDoc scoreDoc : scoreDocs) {
