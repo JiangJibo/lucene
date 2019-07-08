@@ -70,7 +70,8 @@ class FlushByRamOrCountsPolicy extends FlushPolicy {
             control.setApplyAllDeletes();
             if (infoStream.isEnabled("FP")) {
                 infoStream.message("FP",
-                    "force apply deletes bytesUsed=" + control.getDeleteBytesUsed() + " vs ramBufferMB=" + indexWriterConfig.getRAMBufferSizeMB());
+                    "force apply deletes bytesUsed=" + control.getDeleteBytesUsed() + " vs ramBufferMB="
+                        + indexWriterConfig.getRAMBufferSizeMB());
             }
         }
     }
@@ -96,7 +97,8 @@ class FlushByRamOrCountsPolicy extends FlushPolicy {
             if (totalRam >= limit) {
                 if (infoStream.isEnabled("FP")) {
                     infoStream.message("FP",
-                        "trigger flush: activeBytes=" + control.activeBytes() + " deleteBytes=" + control.getDeleteBytesUsed() + " vs limit=" + limit);
+                        "trigger flush: activeBytes=" + control.activeBytes() + " deleteBytes=" + control
+                            .getDeleteBytesUsed() + " vs limit=" + limit);
                 }
                 markLargestWriterPending(control, state, totalRam);
             }
@@ -104,11 +106,13 @@ class FlushByRamOrCountsPolicy extends FlushPolicy {
     }
 
     /**
+     * 指定未Flush数据量最多的DWPT将被Flush
      * Marks the most ram consuming active {@link DocumentsWriterPerThread} flush
      * pending
      */
     protected void markLargestWriterPending(DocumentsWriterFlushControl control,
-                                            ThreadState perThreadState, final long currentBytesPerThread) {
+        ThreadState perThreadState, final long currentBytesPerThread) {
+        // 指定要Flush那个DWPT
         control.setFlushPending(findLargestNonPendingWriter(control, perThreadState));
     }
 

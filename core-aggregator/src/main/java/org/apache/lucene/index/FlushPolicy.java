@@ -60,7 +60,7 @@ abstract class FlushPolicy {
      * thread holds the lock on the given {@link ThreadState}
      */
     public abstract void onDelete(DocumentsWriterFlushControl control,
-                                  ThreadState state);
+        ThreadState state);
 
     /**
      * 在每个doc更新时都会调用
@@ -85,7 +85,7 @@ abstract class FlushPolicy {
      * thread holds the lock on the given {@link ThreadState}
      */
     public abstract void onInsert(DocumentsWriterFlushControl control,
-                                  ThreadState state);
+        ThreadState state);
 
     /**
      * Called by DocumentsWriter to initialize the FlushPolicy
@@ -96,13 +96,13 @@ abstract class FlushPolicy {
     }
 
     /**
+     * 找到当前内存中未Flush的数据量最多的DWPT
      * Returns the current most RAM consuming non-pending {@link ThreadState} with
      * at least one indexed document.
      * <p>
      * This method will never return <code>null</code>
      */
-    protected ThreadState findLargestNonPendingWriter(
-        DocumentsWriterFlushControl control, ThreadState perThreadState) {
+    protected ThreadState findLargestNonPendingWriter(DocumentsWriterFlushControl control, ThreadState perThreadState) {
         assert perThreadState.dwpt.getNumDocsInRAM() > 0;
         // the dwpt which needs to be flushed eventually
         ThreadState maxRamUsingThreadState = control.findLargestNonPendingWriter();

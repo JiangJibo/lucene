@@ -57,6 +57,10 @@ final class DocumentsWriterPerThreadPool {
         DocumentsWriterPerThread dwpt;
         // TODO this should really be part of DocumentsWriterFlushControl
         // write access guarded by DocumentsWriterFlushControl
+        /**
+         * 指定当前DWPT是否要被Flush
+         * 当内存中未Flush的数据总量超过16MB时, 找出所有DWPT中未Flush数据链最大的那个,然后设置其要被刷新
+         */
         volatile boolean flushPending = false;
         // TODO this should really be part of DocumentsWriterFlushControl
         // write access guarded by DocumentsWriterFlushControl

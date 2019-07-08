@@ -44,6 +44,9 @@ import org.apache.lucene.util.ThreadInterruptedException;
  */
 final class DocumentsWriterFlushControl implements Accountable {
 
+    /**
+     * {@link  IndexWriterConfig.DEFAULT_RAM_PER_THREAD_HARD_LIMIT_MB} *1024 *1024 = 1945MB
+     */
     private final long hardMaxBytesPerDWPT;
     private long activeBytes = 0;
     private long flushBytes = 0;
@@ -71,7 +74,8 @@ final class DocumentsWriterFlushControl implements Accountable {
     private final BufferedUpdatesStream bufferedUpdatesStream;
     private final InfoStream infoStream;
 
-    DocumentsWriterFlushControl(DocumentsWriter documentsWriter, LiveIndexWriterConfig config, BufferedUpdatesStream bufferedUpdatesStream) {
+    DocumentsWriterFlushControl(DocumentsWriter documentsWriter, LiveIndexWriterConfig config,
+        BufferedUpdatesStream bufferedUpdatesStream) {
         this.infoStream = config.getInfoStream();
         this.stallControl = new DocumentsWriterStallControl();
         this.perThreadPool = documentsWriter.perThreadPool;
@@ -101,22 +105,30 @@ final class DocumentsWriterFlushControl implements Accountable {
 
     private boolean assertMemory() {
         final double maxRamMB = config.getRAMBufferSizeMB();
-        // We can only assert if we have always been flushing by RAM usage; otherwise the assert will false trip if e.g. the
-        // flush-by-doc-count * doc size was large enough to use far more RAM than the sudden change to IWC's maxRAMBufferSizeMB:
+        // We can only assert if we have always been flushing by RAM usage; otherwise the assert will false trip if e
+        // .g. the
+        // flush-by-doc-count * doc size was large enough to use far more RAM than the sudden change to IWC's
+        // maxRAMBufferSizeMB:
         if (maxRamMB != IndexWriterConfig.DISABLE_AUTO_FLUSH && flushByRAMWasDisabled == false) {
             // for this assert we must be tolerant to ram buffer changes!
             maxConfiguredRamBuffer = Math.max(maxRamMB, maxConfiguredRamBuffer);
             final long ram = flushBytes + activeBytes;
             final long ramBufferBytes = (long)(maxConfiguredRamBuffer * 1024 * 1024);
-            // take peakDelta into account - worst case is that all flushing, pending and blocked DWPT had maxMem and the last doc had the peakDelta
+            // take peakDelta into account - worst case is that all flushing, pending and blocked DWPT had maxMem and
+            // the last doc had the peakDelta
 
-            // 2 * ramBufferBytes -> before we stall we need to cross the 2xRAM Buffer border this is still a valid limit
-            // (numPending + numFlushingDWPT() + numBlockedFlushes()) * peakDelta) -> those are the total number of DWPT that are not active but not yet
-          // fully flushed
-            // all of them could theoretically be taken out of the loop once they crossed the RAM buffer and the last document was the peak delta
-            // (numDocsSinceStalled * peakDelta) -> at any given time there could be n threads in flight that crossed the stall control before we reached the
-          // limit and each of them could hold a peak document
-            final long expected = (2 * ramBufferBytes) + ((numPending + numFlushingDWPT() + numBlockedFlushes()) * peakDelta) + (numDocsSinceStalled
+            // 2 * ramBufferBytes -> before we stall we need to cross the 2xRAM Buffer border this is still a valid
+            // limit
+            // (numPending + numFlushingDWPT() + numBlockedFlushes()) * peakDelta) -> those are the total number of
+            // DWPT that are not active but not yet
+            // fully flushed
+            // all of them could theoretically be taken out of the loop once they crossed the RAM buffer and the last
+            // document was the peak delta
+            // (numDocsSinceStalled * peakDelta) -> at any given time there could be n threads in flight that crossed
+            // the stall control before we reached the
+            // limit and each of them could hold a peak document
+            final long expected = (2 * ramBufferBytes) + ((numPending + numFlushingDWPT() + numBlockedFlushes())
+                * peakDelta) + (numDocsSinceStalled
                 * peakDelta);
             // the expected ram consumption is an upper bound at this point and not really the expected consumption
             if (peakDelta < (ramBufferBytes >> 1)) {
@@ -168,15 +180,25 @@ final class DocumentsWriterFlushControl implements Accountable {
         return true;
     }
 
+    /**
+     * 计算当前DWPT是否应该被flush
+     *
+     * @param perThread
+     * @param isUpdate
+     * @return
+     */
     synchronized DocumentsWriterPerThread doAfterDocument(ThreadState perThread, boolean isUpdate) {
         try {
+            // 记录并累计当前doc用的数据增量
             commitPerThreadBytes(perThread);
+            // 如果当前DWPT没有在flush
             if (!perThread.flushPending) {
                 if (isUpdate) {
                     flushPolicy.onUpdate(this, perThread);
                 } else {
                     flushPolicy.onInsert(this, perThread);
                 }
+                // 一个segment的数据量不要超过1945MB, 如果达到这个阈值就flush
                 if (!perThread.flushPending && perThread.bytesUsed > hardMaxBytesPerDWPT) {
                     // Safety check to prevent a single DWPT exceeding its RAM limit. This
                     // is super important since we can not address more than 2048 MB per DWPT
@@ -259,13 +281,16 @@ final class DocumentsWriterFlushControl implements Accountable {
         if (infoStream.isEnabled("DWFC")) {
             if (stall != stallControl.anyStalledThreads()) {
                 if (stall) {
-                    infoStream.message("DW", String.format(Locale.ROOT, "now stalling flushes: netBytes: %.1f MB flushBytes: %.1f MB fullFlush: %b",
+                    infoStream.message("DW", String.format(Locale.ROOT,
+                        "now stalling flushes: netBytes: %.1f MB flushBytes: %.1f MB fullFlush: %b",
                         netBytes() / 1024. / 1024., flushBytes() / 1024. / 1024., fullFlush));
                     stallStartNS = System.nanoTime();
                 } else {
                     infoStream.message("DW",
-                        String.format(Locale.ROOT, "done stalling flushes for %.1f msec: netBytes: %.1f MB flushBytes: %.1f MB fullFlush: %b",
-                            (System.nanoTime() - stallStartNS) / 1000000., netBytes() / 1024. / 1024., flushBytes() / 1024. / 1024., fullFlush));
+                        String.format(Locale.ROOT,
+                            "done stalling flushes for %.1f msec: netBytes: %.1f MB flushBytes: %.1f MB fullFlush: %b",
+                            (System.nanoTime() - stallStartNS) / 1000000., netBytes() / 1024. / 1024.,
+                            flushBytes() / 1024. / 1024., fullFlush));
                 }
             }
         }
@@ -289,6 +314,8 @@ final class DocumentsWriterFlushControl implements Accountable {
      * Sets flush pending state on the given {@link ThreadState}. The
      * {@link ThreadState} must have indexed at least on Document and must not be
      * already pending.
+     *
+     * @param perThread 某个DWPT
      */
     public synchronized void setFlushPending(ThreadState perThread) {
         assert !perThread.flushPending;
@@ -330,6 +357,7 @@ final class DocumentsWriterFlushControl implements Accountable {
             assert fullFlush : "can not block if fullFlush == false";
             final DocumentsWriterPerThread dwpt;
             final long bytes = perThread.bytesUsed;
+            //
             dwpt = perThreadPool.reset(perThread);
             numPending--;
             blockedFlushes.add(new BlockedFlush(dwpt, bytes));
@@ -497,12 +525,14 @@ final class DocumentsWriterFlushControl implements Accountable {
             // Set a new delete queue - all subsequent DWPT will use this queue until
             // we do another full flush
 
-            // Insert a gap in seqNo of current active thread count, in the worst case each of those threads now have one operation in flight.  It's fine
+            // Insert a gap in seqNo of current active thread count, in the worst case each of those threads now have
+            // one operation in flight.  It's fine
             // if we have some sequence numbers that were never assigned:
             seqNo = documentsWriter.deleteQueue.getLastSequenceNumber() + perThreadPool.getActiveThreadStateCount() + 2;
             flushingQueue.maxSeqNo = seqNo + 1;
 
-            DocumentsWriterDeleteQueue newQueue = new DocumentsWriterDeleteQueue(infoStream, flushingQueue.generation + 1, seqNo + 1);
+            DocumentsWriterDeleteQueue newQueue = new DocumentsWriterDeleteQueue(infoStream,
+                flushingQueue.generation + 1, seqNo + 1);
 
             documentsWriter.deleteQueue = newQueue;
         }
@@ -552,7 +582,8 @@ final class DocumentsWriterFlushControl implements Accountable {
             final ThreadState next = perThreadPool.getThreadState(i);
             next.lock();
             try {
-                assert !next.isInitialized() || next.dwpt.deleteQueue == queue : "isInitialized: " + next.isInitialized() + " numDocs: " + (next.isInitialized()
+                assert !next.isInitialized() || next.dwpt.deleteQueue == queue : "isInitialized: " + next
+                    .isInitialized() + " numDocs: " + (next.isInitialized()
                     ? next.dwpt.getNumDocsInRAM() : 0);
             } finally {
                 next.unlock();
@@ -578,7 +609,8 @@ final class DocumentsWriterFlushControl implements Accountable {
                     setFlushPending(perThread);
                 }
                 final DocumentsWriterPerThread flushingDWPT = internalTryCheckOutForFlush(perThread);
-                assert flushingDWPT != null : "DWPT must never be null here since we hold the lock and it holds documents";
+                assert flushingDWPT != null
+                    : "DWPT must never be null here since we hold the lock and it holds documents";
                 assert dwpt == flushingDWPT : "flushControl returned different DWPT";
                 fullFlushBuffer.add(flushingDWPT);
             }
@@ -724,6 +756,11 @@ final class DocumentsWriterFlushControl implements Accountable {
         return infoStream;
     }
 
+    /**
+     * 找到最大的未flush的DWPT
+     *
+     * @return
+     */
     synchronized ThreadState findLargestNonPendingWriter() {
         ThreadState maxRamUsingThreadState = null;
         long maxRamSoFar = 0;
@@ -735,7 +772,8 @@ final class DocumentsWriterFlushControl implements Accountable {
                 final long nextRam = next.bytesUsed;
                 if (nextRam > 0 && next.dwpt.getNumDocsInRAM() > 0) {
                     if (infoStream.isEnabled("FP")) {
-                        infoStream.message("FP", "thread state has " + nextRam + " bytes; docInRAM=" + next.dwpt.getNumDocsInRAM());
+                        infoStream.message("FP",
+                            "thread state has " + nextRam + " bytes; docInRAM=" + next.dwpt.getNumDocsInRAM());
                     }
                     count++;
                     if (nextRam > maxRamSoFar) {
@@ -757,7 +795,8 @@ final class DocumentsWriterFlushControl implements Accountable {
     final DocumentsWriterPerThread checkoutLargestNonPendingWriter() {
         ThreadState largestNonPendingWriter = findLargestNonPendingWriter();
         if (largestNonPendingWriter != null) {
-            // we only lock this very briefly to swap it's DWPT out - we don't go through the DWPTPool and it's free queue
+            // we only lock this very briefly to swap it's DWPT out - we don't go through the DWPTPool and it's free
+            // queue
             largestNonPendingWriter.lock();
             try {
                 synchronized (this) {
