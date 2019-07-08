@@ -1002,10 +1002,11 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
         try {
             directoryOrig = d;
             directory = new LockValidatingDirectoryWrapper(d, writeLock);
-
+            // 分词器
             analyzer = config.getAnalyzer();
             mergeScheduler = config.getMergeScheduler();
             mergeScheduler.setInfoStream(infoStream);
+            // SPI 包装
             codec = config.getCodec();
 
             bufferedUpdatesStream = new BufferedUpdatesStream(this);
@@ -1059,6 +1060,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
                 // segments_N file with no segments:
                 final SegmentInfos sis = new SegmentInfos(Version.LATEST.major);
                 try {
+                    // 对于写入，只需要关注最新的segment即可
                     final SegmentInfos previous = SegmentInfos.readLatestCommit(directory);
                     sis.updateGenerationVersionAndCounter(previous);
                 } catch (IOException e) {
@@ -1127,7 +1129,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
                 }
             }
 
-            // 从最后的segment的 latest commit point 初始化
+            // 从最后的segment的 latest commit point 初始化, 也就是下次写入从这里写
             else {
                 // Init from either the latest commit point, or an explicit prior commit point:
 

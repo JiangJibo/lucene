@@ -185,6 +185,7 @@ public abstract class Weight implements SegmentCacheable {
         @Override
         public int score(LeafCollector collector, Bits acceptDocs, int min, int max) throws IOException {
             collector.setScorer(scorer);
+            // 检索所有结果
             if (scorer.docID() == -1 && min == 0 && max == DocIdSetIterator.NO_MORE_DOCS) {
                 scoreAll(collector, iterator, twoPhase, acceptDocs);
                 return DocIdSetIterator.NO_MORE_DOCS;
@@ -209,11 +210,14 @@ public abstract class Weight implements SegmentCacheable {
          */
         static int scoreRange(LeafCollector collector, DocIdSetIterator iterator, TwoPhaseIterator twoPhase,
             Bits acceptDocs, int currentDoc, int end) throws IOException {
+
             if (twoPhase == null) {
                 while (currentDoc < end) {
+                    // acceptDocs.get(currentDoc): 当前doc还存活，没有被删
                     if (acceptDocs == null || acceptDocs.get(currentDoc)) {
                         collector.collect(currentDoc);
                     }
+                    // 遍历当前term出现的所有doc
                     currentDoc = iterator.nextDoc();
                 }
                 return currentDoc;

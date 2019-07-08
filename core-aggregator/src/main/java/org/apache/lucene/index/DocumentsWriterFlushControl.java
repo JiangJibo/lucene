@@ -53,10 +53,16 @@ final class DocumentsWriterFlushControl implements Accountable {
     private volatile int numPending = 0;
     private int numDocsSinceStalled = 0; // only with assert
     final AtomicBoolean flushDeletes = new AtomicBoolean(false);
+    /**
+     * 是否flush所有线程, 当关闭应用时会
+     */
     private boolean fullFlush = false;
     private final Queue<DocumentsWriterPerThread> flushQueue = new LinkedList<>();
     // only for safety reasons if a DWPT is close to the RAM limit
     private final Queue<BlockedFlush> blockedFlushes = new LinkedList<>();
+    /**
+     * 设置哪些dwpt需要被flush
+     */
     private final IdentityHashMap<DocumentsWriterPerThread, Long> flushingWriters = new IdentityHashMap<>();
 
     double maxConfiguredRamBuffer = 0;
@@ -65,6 +71,9 @@ final class DocumentsWriterFlushControl implements Accountable {
     long peakNetBytes = 0;// only with assert
     long peakDelta = 0; // only with assert
     boolean flushByRAMWasDisabled; // only with assert
+    /**
+     * Object锁, 当有线程需要flush时, notifyAll
+     */
     final DocumentsWriterStallControl stallControl;
     private final DocumentsWriterPerThreadPool perThreadPool;
     private final FlushPolicy flushPolicy;
@@ -75,7 +84,7 @@ final class DocumentsWriterFlushControl implements Accountable {
     private final InfoStream infoStream;
 
     DocumentsWriterFlushControl(DocumentsWriter documentsWriter, LiveIndexWriterConfig config,
-        BufferedUpdatesStream bufferedUpdatesStream) {
+                                BufferedUpdatesStream bufferedUpdatesStream) {
         this.infoStream = config.getInfoStream();
         this.stallControl = new DocumentsWriterStallControl();
         this.perThreadPool = documentsWriter.perThreadPool;
@@ -212,7 +221,15 @@ final class DocumentsWriterFlushControl implements Accountable {
         }
     }
 
+    /**
+     * 验证当前DWPT是否要flush
+     *
+     * @param perThread
+     * @param markPending
+     * @return
+     */
     private DocumentsWriterPerThread checkout(ThreadState perThread, boolean markPending) {
+        // 如果全部flush
         if (fullFlush) {
             if (perThread.flushPending) {
                 checkoutAndBlock(perThread);
@@ -221,6 +238,7 @@ final class DocumentsWriterFlushControl implements Accountable {
                 return null;
             }
         } else {
+            // 是否仅仅是标记要flush
             if (markPending) {
                 assert perThread.isFlushPending() == false;
                 setFlushPending(perThread);
@@ -345,8 +363,7 @@ final class DocumentsWriterFlushControl implements Accountable {
         }
     }
 
-    synchronized DocumentsWriterPerThread tryCheckoutForFlush(
-        ThreadState perThread) {
+    synchronized DocumentsWriterPerThread tryCheckoutForFlush(ThreadState perThread) {
         return perThread.flushPending ? internalTryCheckOutForFlush(perThread) : null;
     }
 
@@ -377,7 +394,7 @@ final class DocumentsWriterFlushControl implements Accountable {
                         assert perThread.isHeldByCurrentThread();
                         final DocumentsWriterPerThread dwpt;
                         final long bytes = perThread.bytesUsed; // do that before
-                        // replace!
+                        // replace! 重置perThread里的dwpt
                         dwpt = perThreadPool.reset(perThread);
                         assert !flushingWriters.containsKey(dwpt) : "DWPT is already flushing";
                         // Record the flushing DWPT to reduce flushBytes in doAfterFlush
@@ -413,6 +430,7 @@ final class DocumentsWriterFlushControl implements Accountable {
             fullFlush = this.fullFlush;
             numPending = this.numPending;
         }
+        // 如果不是全部Flush
         if (numPending > 0 && !fullFlush) { // don't check if we are doing a full flush
             final int limit = perThreadPool.getActiveThreadStateCount();
             for (int i = 0; i < limit && numPending > 0; i++) {

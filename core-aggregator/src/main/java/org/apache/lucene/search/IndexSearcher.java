@@ -694,6 +694,7 @@ public class IndexSearcher {
             BulkScorer scorer = weight.bulkScorer(ctx);
             if (scorer != null) {
                 try {
+                    //
                     scorer.score(leafCollector, ctx.reader().getLiveDocs());
                 } catch (CollectionTerminatedException e) {
                     // collection was terminated prematurely

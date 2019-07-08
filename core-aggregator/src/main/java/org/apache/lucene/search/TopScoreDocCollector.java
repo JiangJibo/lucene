@@ -69,6 +69,7 @@ public abstract class TopScoreDocCollector extends TopDocsCollector<ScoreDoc> {
                     assert !Float.isNaN(score);
 
                     totalHits++;
+                    // 如果分数相等, lucene倾向于docID小的, 也就是时间早的数据
                     if (score <= pqTop.score) {
                         // Since docs are returned in-order (i.e., increasing doc Id), a document
                         // with equal score to pqTop.score cannot compete since HitQueue favors

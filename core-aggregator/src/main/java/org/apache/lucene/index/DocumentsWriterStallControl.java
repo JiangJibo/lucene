@@ -38,82 +38,81 @@ import org.apache.lucene.util.ThreadInterruptedException;
  * continue indexing.
  */
 final class DocumentsWriterStallControl {
-  
-  private volatile boolean stalled;
-  private int numWaiting; // only with assert
-  private boolean wasStalled; // only with assert
-  private final Map<Thread, Boolean> waiting = new IdentityHashMap<>(); // only with assert
 
-  /**
-   * Update the stalled flag status. This method will set the stalled flag to
-   * <code>true</code> iff the number of flushing
-   * {@link DocumentsWriterPerThread} is greater than the number of active
-   * {@link DocumentsWriterPerThread}. Otherwise it will reset the
-   * {@link DocumentsWriterStallControl} to healthy and release all threads
-   * waiting on {@link #waitIfStalled()}
-   */
-  synchronized void updateStalled(boolean stalled) {
-    if (this.stalled != stalled) {
-      this.stalled = stalled;
-      if (stalled) {
-        wasStalled = true;
-      }
-      notifyAll();
-    }
-  }
-  
-  /**
-   * Blocks if documents writing is currently in a stalled state. 
-   * 
-   */
-  void waitIfStalled() {
-    if (stalled) {
-      synchronized (this) {
-        if (stalled) { // react on the first wakeup call!
-          // don't loop here, higher level logic will re-stall!
-          try {
-            incWaiters();
-            // Defensive, in case we have a concurrency bug that fails to .notify/All our thread:
-            // just wait for up to 1 second here, and let caller re-stall if it's still needed:
-            wait(1000);
-            decrWaiters();
-          } catch (InterruptedException e) {
-            throw new ThreadInterruptedException(e);
-          }
+    private volatile boolean stalled;
+    private int numWaiting; // only with assert
+    private boolean wasStalled; // only with assert
+    private final Map<Thread, Boolean> waiting = new IdentityHashMap<>(); // only with assert
+
+    /**
+     * Update the stalled flag status. This method will set the stalled flag to
+     * <code>true</code> iff the number of flushing
+     * {@link DocumentsWriterPerThread} is greater than the number of active
+     * {@link DocumentsWriterPerThread}. Otherwise it will reset the
+     * {@link DocumentsWriterStallControl} to healthy and release all threads
+     * waiting on {@link #waitIfStalled()}
+     */
+    synchronized void updateStalled(boolean stalled) {
+        if (this.stalled != stalled) {
+            this.stalled = stalled;
+            if (stalled) {
+                wasStalled = true;
+            }
+            notifyAll();
         }
-      }
     }
-  }
-  
-  boolean anyStalledThreads() {
-    return stalled;
-  }
-  
-  private void incWaiters() {
-    numWaiting++;
-    assert waiting.put(Thread.currentThread(), Boolean.TRUE) == null;
-    assert numWaiting > 0;
-  }
-  
-  private void decrWaiters() {
-    numWaiting--;
-    assert waiting.remove(Thread.currentThread()) != null;
-    assert numWaiting >= 0;
-  }
-  
-  synchronized boolean hasBlocked() { // for tests
-    return numWaiting > 0;
-  }
-  
-  boolean isHealthy() { // for tests
-    return !stalled; // volatile read!
-  }
-  
-  synchronized boolean isThreadQueued(Thread t) { // for tests
-    return waiting.containsKey(t);
-  }
 
-  synchronized boolean wasStalled() { // for tests
-    return wasStalled;
-  }
+    /**
+     * Blocks if documents writing is currently in a stalled state.
+     */
+    void waitIfStalled() {
+        if (stalled) {
+            synchronized (this) {
+                if (stalled) { // react on the first wakeup call!
+                    // don't loop here, higher level logic will re-stall!
+                    try {
+                        incWaiters();
+                        // Defensive, in case we have a concurrency bug that fails to .notify/All our thread:
+                        // just wait for up to 1 second here, and let caller re-stall if it's still needed:
+                        wait(1000);
+                        decrWaiters();
+                    } catch (InterruptedException e) {
+                        throw new ThreadInterruptedException(e);
+                    }
+                }
+            }
+        }
+    }
+
+    boolean anyStalledThreads() {
+        return stalled;
+    }
+
+    private void incWaiters() {
+        numWaiting++;
+        assert waiting.put(Thread.currentThread(), Boolean.TRUE) == null;
+        assert numWaiting > 0;
+    }
+
+    private void decrWaiters() {
+        numWaiting--;
+        assert waiting.remove(Thread.currentThread()) != null;
+        assert numWaiting >= 0;
+    }
+
+    synchronized boolean hasBlocked() { // for tests
+        return numWaiting > 0;
+    }
+
+    boolean isHealthy() { // for tests
+        return !stalled; // volatile read!
+    }
+
+    synchronized boolean isThreadQueued(Thread t) { // for tests
+        return waiting.containsKey(t);
+    }
+
+    synchronized boolean wasStalled() { // for tests
+        return wasStalled;
+    }
 }
