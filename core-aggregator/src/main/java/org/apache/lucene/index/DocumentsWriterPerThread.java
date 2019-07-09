@@ -105,7 +105,7 @@ class DocumentsWriterPerThread {
         final int delCount;
 
         private FlushedSegment(InfoStream infoStream, SegmentCommitInfo segmentInfo, FieldInfos fieldInfos,
-            BufferedUpdates segmentUpdates, MutableBits liveDocs, int delCount, Sorter.DocMap sortMap)
+                               BufferedUpdates segmentUpdates, MutableBits liveDocs, int delCount, Sorter.DocMap sortMap)
             throws IOException {
             this.segmentInfo = segmentInfo;
             this.fieldInfos = fieldInfos;
@@ -208,9 +208,9 @@ class DocumentsWriterPerThread {
      * @throws IOException
      */
     public DocumentsWriterPerThread(IndexWriter writer, String segmentName, Directory directoryOrig,
-        Directory directory,
-        LiveIndexWriterConfig indexWriterConfig, InfoStream infoStream, DocumentsWriterDeleteQueue deleteQueue,
-        FieldInfos.Builder fieldInfos, AtomicLong pendingNumDocs, boolean enableTestPoints) throws IOException {
+                                    Directory directory,
+                                    LiveIndexWriterConfig indexWriterConfig, InfoStream infoStream, DocumentsWriterDeleteQueue deleteQueue,
+                                    FieldInfos.Builder fieldInfos, AtomicLong pendingNumDocs, boolean enableTestPoints) throws IOException {
         this.indexWriter = writer;
         this.directoryOrig = directoryOrig;
         this.directory = new TrackingDirectoryWrapper(directory);
@@ -321,7 +321,7 @@ class DocumentsWriterPerThread {
      * @throws AbortingException
      */
     public long updateDocuments(Iterable<? extends Iterable<? extends IndexableField>> docs, Analyzer analyzer,
-        Term delTerm)
+                                Term delTerm)
         throws IOException, AbortingException {
         testPoint("DocumentsWriterPerThread addDocuments start");
         assert deleteQueue != null;

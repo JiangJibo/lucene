@@ -107,6 +107,9 @@ final class DocumentsWriter implements Closeable, Accountable {
     private final AtomicInteger numDocsInRAM = new AtomicInteger(0);
 
     // TODO: cut over to BytesRefHash in BufferedDeletes
+    /**
+     * 存储Term删除和Query删除的数据
+     */
     volatile DocumentsWriterDeleteQueue deleteQueue;
 
     private final DocumentsWriterFlushQueue ticketQueue = new DocumentsWriterFlushQueue();
@@ -160,10 +163,12 @@ final class DocumentsWriter implements Closeable, Accountable {
     synchronized long deleteTerms(final Term... terms) throws IOException {
         // TODO why is this synchronized?
         final DocumentsWriterDeleteQueue deleteQueue = this.deleteQueue;
+        // 存储Term删除的数据, 返回当前总共有多少个删除,包含Term和Query
         long seqNo = deleteQueue.addDelete(terms);
+        // 根据当前条件判断是否要触发flush, 主要是当前内存中新的数据是否有16MB
         flushControl.doOnDelete();
         lastSeqNo = Math.max(lastSeqNo, seqNo);
-        //如果缓存的删除太多会先解析一部分写入磁盘，以此释放一部分的内存占用
+        //如果触发了flush, 也就是内存中新的数据超过16MB, 就会尝试处理所有的Delete
         if (applyAllDeletes(deleteQueue)) {
             seqNo = -seqNo;
         }
@@ -189,6 +194,7 @@ final class DocumentsWriter implements Closeable, Accountable {
      * If buffered deletes are using too much heap, resolve them and write disk and return true.
      */
     private boolean applyAllDeletes(DocumentsWriterDeleteQueue deleteQueue) throws IOException {
+        // 如果触发了flush, 会尝试处理所有的删除
         if (flushControl.getAndResetApplyAllDeletes()) {
             if (deleteQueue != null) {
                 ticketQueue.addDeletes(deleteQueue);

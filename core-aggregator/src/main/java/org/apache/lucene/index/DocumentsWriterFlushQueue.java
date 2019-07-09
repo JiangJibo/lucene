@@ -61,6 +61,13 @@ class DocumentsWriterFlushQueue {
         assert numTickets >= 0;
     }
 
+    /**
+     * 添加一个flush任务
+     *
+     * @param dwpt
+     * @return
+     * @throws IOException
+     */
     synchronized SegmentFlushTicket addFlushTicket(DocumentsWriterPerThread dwpt) throws IOException {
         // Each flush is assigned a ticket in the order they acquire the ticketQueue
         // lock

@@ -1757,6 +1757,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     public long deleteDocuments(Term... terms) throws IOException {
         ensureOpen();
         try {
+            // 如果在添加当前删除时，内存中新的doc数据超过16MB, 那么会触发segment的flush过程, 用seqNo < 0来标识触发flush
             long seqNo = docWriter.deleteTerms(terms);
             if (seqNo < 0) {
                 seqNo = -seqNo;
@@ -2805,8 +2806,8 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      * segments SegmentInfo to the index writer.
      */
     synchronized void publishFlushedSegment(SegmentCommitInfo newSegment,
-        FrozenBufferedUpdates packet, FrozenBufferedUpdates globalPacket,
-        Sorter.DocMap sortMap) throws IOException {
+                                            FrozenBufferedUpdates packet, FrozenBufferedUpdates globalPacket,
+                                            Sorter.DocMap sortMap) throws IOException {
         boolean published = false;
         try {
             // Lock order IW -> BDS
@@ -3511,7 +3512,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      * @see #setLiveCommitData(Iterable)
      */
     public final synchronized void setLiveCommitData(Iterable<Map.Entry<String, String>> commitUserData,
-        boolean doIncrementVersion) {
+                                                     boolean doIncrementVersion) {
         this.commitUserData = commitUserData;
         if (doIncrementVersion) {
             segmentInfos.changed();
@@ -3893,7 +3894,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      * deletes file is saved.
      */
     synchronized private ReadersAndUpdates commitMergedDeletesAndUpdates(MergePolicy.OneMerge merge,
-        MergeState mergeState) throws IOException {
+                                                                         MergeState mergeState) throws IOException {
 
         mergeFinishedGen.incrementAndGet();
 
@@ -5233,7 +5234,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      * method is called, because they are not allowed within a compound file.
      */
     final void createCompoundFile(InfoStream infoStream, TrackingDirectoryWrapper directory, final SegmentInfo info,
-        IOContext context) throws IOException {
+                                  IOContext context) throws IOException {
 
         // maybe this check is not needed, but why take the risk?
         if (!directory.getCreatedFiles().isEmpty()) {
@@ -5341,6 +5342,13 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
         }
     }
 
+    /**
+     * 是否要触发segment的merge过程
+     *
+     * @param triggerMerge
+     * @param forcePurge
+     * @throws IOException
+     */
     private void processEvents(boolean triggerMerge, boolean forcePurge) throws IOException {
         processEvents(eventQueue, triggerMerge, forcePurge);
         if (triggerMerge) {
