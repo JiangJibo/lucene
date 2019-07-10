@@ -71,24 +71,30 @@ import org.apache.lucene.util.InfoStream;
 final class DocumentsWriterDeleteQueue implements Accountable {
 
     /**
-     * 每个DWPT在添加更新操作时都会将tail置为最新的删除节点,
+     * 每个线程在添加更新操作时都会将tail置为最新的删除节点,
      * 然后 {@link #globalSlice} 判断如果自己的 sliceTail 和 此tail不一致, 那么更新 sliceTail指向此tail,
      * 然后将此节点添加到 {@link #globalBufferedUpdates} 中
      * the current end (latest delete operation) in the delete queue:
      */
     private volatile Node<?> tail;
 
-    /**
+    /** 持有删除Node的链表
      * Used to record deletes against all prior (already written to disk) segments.  Whenever any segment flushes, we
      * bundle up this set of
      * deletes and insert into the buffered updates stream before the newly flushed segment(s).
      */
     private final DeleteSlice globalSlice;
+    /**
+     * 最终存放删除和更新的缓冲区
+     */
     private final BufferedUpdates globalBufferedUpdates;
 
     // only acquired to update the global deletes, pkg-private for access by tests:
     final ReentrantLock globalBufferLock = new ReentrantLock();
 
+    /**
+     *
+     */
     final long generation;
 
     /**
@@ -182,7 +188,7 @@ final class DocumentsWriterDeleteQueue implements Accountable {
     }
 
     /**
-     * 跟新tail执行最新的node
+     * 更新tail执行最新的node
      *
      * @param newNode
      * @return
@@ -286,6 +292,7 @@ final class DocumentsWriterDeleteQueue implements Accountable {
     boolean updateSliceNoSeqNo(DeleteSlice slice) {
         if (slice.sliceTail != tail) {
             // new deletes arrived since we last checked
+            // 将tail赋值给 globalSlice 的 sliceTail
             slice.sliceTail = tail;
             return true;
         }
@@ -323,6 +330,7 @@ final class DocumentsWriterDeleteQueue implements Accountable {
             do {
                 current = current.next;
                 assert current != null : "slice property violated between the head on the tail must not be a null node";
+                // 将sliceHead 和 sliceTail 之间的Node 追加到 globalBufferedUpdates 里
                 current.apply(del, docIDUpto);
             } while (current != sliceTail);
             reset();

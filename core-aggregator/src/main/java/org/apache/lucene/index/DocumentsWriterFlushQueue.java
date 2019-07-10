@@ -29,12 +29,21 @@ import org.apache.lucene.index.DocumentsWriterPerThread.FlushedSegment;
  */
 class DocumentsWriterFlushQueue {
 
+    /**
+     * 待Flush的更新和删除数据
+     */
     private final Queue<FlushTicket> queue = new LinkedList<>();
     // we track tickets separately since count must be present even before the ticket is
     // constructed ie. queue.size would not reflect it.
     private final AtomicInteger ticketCount = new AtomicInteger();
     private final ReentrantLock purgeLock = new ReentrantLock();
 
+    /**
+     * 将所有缓冲的待删除和更新的数据添加到Queue中
+     *
+     * @param deleteQueue
+     * @throws IOException
+     */
     void addDeletes(DocumentsWriterDeleteQueue deleteQueue) throws IOException {
         synchronized (this) {
             incTickets();// first inc the ticket count - freeze opens
@@ -201,7 +210,8 @@ class DocumentsWriterFlushQueue {
          * publishing operation is synced on {@code IW -> BDS} so that the {@link SegmentInfo}'s
          * delete generation is always GlobalPacket_deleteGeneration + 1
          */
-        protected final void publishFlushedSegment(IndexWriter indexWriter, FlushedSegment newSegment, FrozenBufferedUpdates globalPacket)
+        protected final void publishFlushedSegment(IndexWriter indexWriter, FlushedSegment newSegment,
+            FrozenBufferedUpdates globalPacket)
             throws IOException {
             assert newSegment != null;
             assert newSegment.segmentInfo != null;
@@ -217,12 +227,13 @@ class DocumentsWriterFlushQueue {
             indexWriter.publishFlushedSegment(newSegment.segmentInfo, segmentUpdates, globalPacket, newSegment.sortMap);
         }
 
-        protected final void finishFlush(IndexWriter indexWriter, FlushedSegment newSegment, FrozenBufferedUpdates bufferedUpdates)
+        protected final void finishFlush(IndexWriter indexWriter, FlushedSegment newSegment,
+            FrozenBufferedUpdates bufferedUpdates)
             throws IOException {
             // Finish the flushed segment and publish it to IndexWriter
             if (newSegment == null) {
                 if (bufferedUpdates != null && bufferedUpdates.any()) {
-                    // 应用更新
+                    // 应用更新和删除
                     indexWriter.publishFrozenUpdates(bufferedUpdates);
                     if (indexWriter.infoStream.isEnabled("DW")) {
                         indexWriter.infoStream.message("DW", "flush: push buffered updates: " + bufferedUpdates);

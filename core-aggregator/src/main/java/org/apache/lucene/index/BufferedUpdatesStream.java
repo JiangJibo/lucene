@@ -54,6 +54,9 @@ import org.apache.lucene.util.InfoStream;
 
 class BufferedUpdatesStream implements Accountable {
 
+    /**
+     * 所有冻结过的删除和更新操作
+     */
     private final Set<FrozenBufferedUpdates> updates = new HashSet<>();
 
     // Starts at 1 so that SegmentInfos that have never had

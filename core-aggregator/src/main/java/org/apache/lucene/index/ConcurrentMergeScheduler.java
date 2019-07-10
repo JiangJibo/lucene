@@ -203,19 +203,22 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
             maxThreadCount = 1;
             maxMergeCount = 6;
         } else {
+            // 取物理线程数
             int coreCount = Runtime.getRuntime().availableProcessors();
 
             // Let tests override this to help reproducing a failure on a machine that has a different
             // core count than the one where the test originally failed:
             try {
+                // 如果在环境变脸里设置了在Merge是使用的线程数上限
                 String value = System.getProperty(DEFAULT_CPU_CORE_COUNT_PROPERTY);
                 if (value != null) {
                     coreCount = Integer.parseInt(value);
                 }
             } catch (Throwable ignored) {
             }
-
+            // 如果物理线程小于8,用4个线程; 否则用线程总数的一半。至少使用一个线程
             maxThreadCount = Math.max(1, Math.min(4, coreCount / 2));
+            // 最多可以接受的merge任务
             maxMergeCount = maxThreadCount + 5;
         }
     }
@@ -460,6 +463,12 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
         }
     }
 
+    /**
+     * 初始化动态配置, Merge时使用的线程数,最多接受的Merge任务数量
+     *
+     * @param writer
+     * @throws IOException
+     */
     private synchronized void initDynamicDefaults(IndexWriter writer) throws IOException {
         if (maxThreadCount == AUTO_DETECT_MERGES_AND_THREADS) {
             boolean spins = IOUtils.spins(writer.getDirectory());
@@ -473,6 +482,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
                 }
             } catch (Throwable ignored) {
             }
+            // 设置Merge时使用的线程数, 最多接受多少个Merge任务
             setDefaultMaxMergesAndThreads(spins);
             if (verbose()) {
                 message("initDynamicDefaults spins=" + spins + " maxThreadCount=" + maxThreadCount + " maxMergeCount="

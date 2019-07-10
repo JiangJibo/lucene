@@ -58,6 +58,7 @@ class FlushByRamOrCountsPolicy extends FlushPolicy {
 
     /**
      * 当doc删除时
+     * 设置 {@link DocumentsWriterFlushControl#fullFlush} 来表示当前需要处理所有的删除和更新
      *
      * @param control
      * @param state
@@ -67,6 +68,7 @@ class FlushByRamOrCountsPolicy extends FlushPolicy {
 
         // 默认是根据内存使用量, 如果doc的变更超过16M
         if ((flushOnRAM() && control.getDeleteBytesUsed() > 1024 * 1024 * indexWriterConfig.getRAMBufferSizeMB())) {
+            // 设置需要处理所有的删除
             control.setApplyAllDeletes();
             if (infoStream.isEnabled("FP")) {
                 infoStream.message("FP",

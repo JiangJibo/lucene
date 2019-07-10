@@ -199,6 +199,7 @@ final class DocumentsWriter implements Closeable, Accountable {
             if (deleteQueue != null) {
                 ticketQueue.addDeletes(deleteQueue);
             }
+            // 设置一个处理删除的事件, 这是处理删除的触发点
             putEvent(ApplyDeletesEvent.INSTANCE); // apply deletes event forces a purge
             return true;
         }

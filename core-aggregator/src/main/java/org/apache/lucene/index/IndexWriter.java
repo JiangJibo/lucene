@@ -44,6 +44,9 @@ import org.apache.lucene.codecs.FieldInfosFormat;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.DocValuesUpdate.BinaryDocValuesUpdate;
 import org.apache.lucene.index.DocValuesUpdate.NumericDocValuesUpdate;
+import org.apache.lucene.index.DocumentsWriter.ApplyDeletesEvent;
+import org.apache.lucene.index.DocumentsWriter.DeleteNewFilesEvent;
+import org.apache.lucene.index.DocumentsWriter.FlushFailedEvent;
 import org.apache.lucene.index.FieldInfos.FieldNumbers;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.search.MatchAllDocsQuery;
@@ -308,6 +311,16 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     final FieldNumbers globalFieldNumberMap;
 
     final DocumentsWriter docWriter;
+    /**
+     * 事件队列, 存放
+     * {@link DeleteNewFilesEvent}
+     * {@link ApplyDeletesEvent}
+     * {@link DeleteNewFilesEvent}
+     * {@link FlushFailedEvent}
+     * 最后根据事件类型来做相应处理, 比如处理删除
+     *
+     * @see #processEvents(boolean, boolean)
+     */
     private final Queue<Event> eventQueue;
     final IndexFileDeleter deleter;
 
@@ -1184,6 +1197,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
 
             // 初始化docWriter,负责添加doc, 写 segment文件
             docWriter = new DocumentsWriter(this, config, directoryOrig, directory);
+            // 事件队列, 存放 ApplyDeletesEvent，
             eventQueue = docWriter.eventQueue();
 
             // Default deleter (for backwards compatibility) is
@@ -1757,10 +1771,13 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     public long deleteDocuments(Term... terms) throws IOException {
         ensureOpen();
         try {
-            // 如果在添加当前删除时，内存中新的doc数据超过16MB, 那么会触发segment的flush过程, 用seqNo < 0来标识触发flush
+            // 如果在添加当前删除时，内存中新的doc数据超过16MB, 那么会触发segment的flush过程,
+            // 这个过程会先处理Delete相关数据, 因为设置了一个 ApplyDeletesEvent 事件
+            // 用seqNo < 0来标识触发flush
             long seqNo = docWriter.deleteTerms(terms);
             if (seqNo < 0) {
                 seqNo = -seqNo;
+                // 如果触发了Flush和Merge, 先发布删除数据，然后Flush和Merge
                 processEvents(true, false);
             }
             return seqNo;
@@ -2387,7 +2404,8 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
                 "Expected EXPLICT or MERGE_FINISHED as trigger even with maxNumSegments set but was: " + trigger.name();
 
             // 从多个segment中找出最多 maxNumSegments 个来merge。 mergePolicy ： TieredMergePolicy
-            spec = mergePolicy.findForcedMerges(segmentInfos, maxNumSegments, Collections.unmodifiableMap(segmentsToMerge), this);
+            spec = mergePolicy.findForcedMerges(segmentInfos, maxNumSegments,
+                Collections.unmodifiableMap(segmentsToMerge), this);
             newMergesFound = spec != null;
             if (newMergesFound) {
                 final int numMerges = spec.merges.size();
@@ -2794,6 +2812,13 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
         segmentInfos.changed();
     }
 
+    /**
+     * 发布已经冻结了的更新和删除, 这样在Flush和Merge是才能使用
+     * 将其放入 {@link BufferedUpdatesStream#updates} 里
+     *
+     * @param packet
+     * @throws IOException
+     */
     synchronized void publishFrozenUpdates(FrozenBufferedUpdates packet) throws IOException {
         assert packet != null && packet.any();
         bufferedUpdatesStream.push(packet);
@@ -2806,8 +2831,8 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      * segments SegmentInfo to the index writer.
      */
     synchronized void publishFlushedSegment(SegmentCommitInfo newSegment,
-                                            FrozenBufferedUpdates packet, FrozenBufferedUpdates globalPacket,
-                                            Sorter.DocMap sortMap) throws IOException {
+        FrozenBufferedUpdates packet, FrozenBufferedUpdates globalPacket,
+        Sorter.DocMap sortMap) throws IOException {
         boolean published = false;
         try {
             // Lock order IW -> BDS
@@ -3512,7 +3537,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      * @see #setLiveCommitData(Iterable)
      */
     public final synchronized void setLiveCommitData(Iterable<Map.Entry<String, String>> commitUserData,
-                                                     boolean doIncrementVersion) {
+        boolean doIncrementVersion) {
         this.commitUserData = commitUserData;
         if (doIncrementVersion) {
             segmentInfos.changed();
@@ -3894,7 +3919,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      * deletes file is saved.
      */
     synchronized private ReadersAndUpdates commitMergedDeletesAndUpdates(MergePolicy.OneMerge merge,
-                                                                         MergeState mergeState) throws IOException {
+        MergeState mergeState) throws IOException {
 
         mergeFinishedGen.incrementAndGet();
 
@@ -5234,7 +5259,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      * method is called, because they are not allowed within a compound file.
      */
     final void createCompoundFile(InfoStream infoStream, TrackingDirectoryWrapper directory, final SegmentInfo info,
-                                  IOContext context) throws IOException {
+        IOContext context) throws IOException {
 
         // maybe this check is not needed, but why take the risk?
         if (!directory.getCreatedFiles().isEmpty()) {
@@ -5343,7 +5368,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     }
 
     /**
-     * 是否要触发segment的merge过程
+     * 处理事件, 根据事件类型不同做不同处理
      *
      * @param triggerMerge
      * @param forcePurge
