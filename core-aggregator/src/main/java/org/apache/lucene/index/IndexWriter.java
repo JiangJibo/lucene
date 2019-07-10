@@ -345,6 +345,9 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     HashSet<SegmentCommitInfo> mergingSegments = new HashSet<>();
 
     private final MergeScheduler mergeScheduler;
+    /**
+     * 等待merge的segment信息
+     */
     private LinkedList<MergePolicy.OneMerge> pendingMerges = new LinkedList<>();
     private Set<MergePolicy.OneMerge> runningMerges = new HashSet<>();
     private List<MergePolicy.OneMerge> mergeExceptions = new ArrayList<>();
@@ -2370,7 +2373,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     }
 
     /**
-     * 更新待merge
+     * 更新待merge, 将其注册到 {@link #pendingMerges} 里
      *
      * @param mergePolicy
      * @param trigger
@@ -2423,6 +2426,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
         if (newMergesFound) {
             final int numMerges = spec.merges.size();
             for (int i = 0; i < numMerges; i++) {
+                // 注册那些segment需要被merge
                 registerMerge(spec.merges.get(i));
             }
         }
@@ -2831,8 +2835,8 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      * segments SegmentInfo to the index writer.
      */
     synchronized void publishFlushedSegment(SegmentCommitInfo newSegment,
-        FrozenBufferedUpdates packet, FrozenBufferedUpdates globalPacket,
-        Sorter.DocMap sortMap) throws IOException {
+                                            FrozenBufferedUpdates packet, FrozenBufferedUpdates globalPacket,
+                                            Sorter.DocMap sortMap) throws IOException {
         boolean published = false;
         try {
             // Lock order IW -> BDS
@@ -3537,7 +3541,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      * @see #setLiveCommitData(Iterable)
      */
     public final synchronized void setLiveCommitData(Iterable<Map.Entry<String, String>> commitUserData,
-        boolean doIncrementVersion) {
+                                                     boolean doIncrementVersion) {
         this.commitUserData = commitUserData;
         if (doIncrementVersion) {
             segmentInfos.changed();
@@ -3919,7 +3923,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      * deletes file is saved.
      */
     synchronized private ReadersAndUpdates commitMergedDeletesAndUpdates(MergePolicy.OneMerge merge,
-        MergeState mergeState) throws IOException {
+                                                                         MergeState mergeState) throws IOException {
 
         mergeFinishedGen.incrementAndGet();
 
@@ -4336,6 +4340,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     }
 
     /**
+     * 注册那些segment需要被merge
      * Checks whether this merge involves any segments
      * already participating in a merge.  If not, this merge
      * is "registered", meaning we record that its segments
@@ -5259,7 +5264,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      * method is called, because they are not allowed within a compound file.
      */
     final void createCompoundFile(InfoStream infoStream, TrackingDirectoryWrapper directory, final SegmentInfo info,
-        IOContext context) throws IOException {
+                                  IOContext context) throws IOException {
 
         // maybe this check is not needed, but why take the risk?
         if (!directory.getCreatedFiles().isEmpty()) {

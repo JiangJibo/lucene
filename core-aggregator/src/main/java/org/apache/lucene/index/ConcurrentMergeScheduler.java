@@ -564,6 +564,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
 
         assert !Thread.holdsLock(writer);
 
+        // 初始化动态配置, Merge时使用的线程数,最多接受的Merge任务数量
         initDynamicDefaults(writer);
 
         if (trigger == MergeTrigger.CLOSING) {
