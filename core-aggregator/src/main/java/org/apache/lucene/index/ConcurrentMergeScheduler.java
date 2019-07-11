@@ -567,8 +567,10 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
         // 初始化动态配置, Merge时使用的线程数,最多接受的Merge任务数量
         initDynamicDefaults(writer);
 
+        // 如果Merge是由服务关闭触发的
         if (trigger == MergeTrigger.CLOSING) {
             // Disable throttling on close:
+            // 重置IO上限
             targetMBPerSec = MAX_MERGE_MB_PER_SEC;
             updateMergeThreads();
         }
@@ -592,7 +594,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
             if (maybeStall(writer) == false) {
                 break;
             }
-
+            // 拿到第一个Merge信息
             OneMerge merge = writer.getNextMerge();
             if (merge == null) {
                 if (verbose()) {
@@ -836,6 +838,7 @@ public class ConcurrentMergeScheduler extends MergeScheduler {
     }
 
     /**
+     * 更新IO阀门, 也就是IO上限
      * Tunes IO throttle when a new merge starts.
      */
     private synchronized void updateIOThrottle(OneMerge newMerge, MergeRateLimiter rateLimiter) throws IOException {

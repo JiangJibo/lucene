@@ -346,7 +346,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
 
     private final MergeScheduler mergeScheduler;
     /**
-     * 等待merge的segment信息
+     * 等待merge的数据，每个OneMerge里可能有多个{@link SegmentCommitInfo}
      */
     private LinkedList<MergePolicy.OneMerge> pendingMerges = new LinkedList<>();
     private Set<MergePolicy.OneMerge> runningMerges = new HashSet<>();
@@ -2368,6 +2368,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      */
     final void maybeMerge(MergePolicy mergePolicy, MergeTrigger trigger, int maxNumSegments) throws IOException {
         ensureOpen(false);
+        // 是否有有新的segmentCommitInfo需要被merge
         boolean newMergesFound = updatePendingMerges(mergePolicy, trigger, maxNumSegments);
         mergeScheduler.merge(this, trigger, newMergesFound);
     }
@@ -2418,7 +2419,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
                 }
             }
         }
-        // 获取所有可以merge 的segment
+        // 获取所有可以merge 的segments,同一时间可能有多层的segment被merge成多个
         else {
             spec = mergePolicy.findMerges(trigger, segmentInfos, this);
         }
@@ -2426,7 +2427,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
         if (newMergesFound) {
             final int numMerges = spec.merges.size();
             for (int i = 0; i < numMerges; i++) {
-                // 注册那些segment需要被merge
+                // 注册那些segment需要被merge。 同一时间可能有多层的segment被merge成多个
                 registerMerge(spec.merges.get(i));
             }
         }
@@ -2835,8 +2836,8 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      * segments SegmentInfo to the index writer.
      */
     synchronized void publishFlushedSegment(SegmentCommitInfo newSegment,
-                                            FrozenBufferedUpdates packet, FrozenBufferedUpdates globalPacket,
-                                            Sorter.DocMap sortMap) throws IOException {
+        FrozenBufferedUpdates packet, FrozenBufferedUpdates globalPacket,
+        Sorter.DocMap sortMap) throws IOException {
         boolean published = false;
         try {
             // Lock order IW -> BDS
@@ -3541,7 +3542,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      * @see #setLiveCommitData(Iterable)
      */
     public final synchronized void setLiveCommitData(Iterable<Map.Entry<String, String>> commitUserData,
-                                                     boolean doIncrementVersion) {
+        boolean doIncrementVersion) {
         this.commitUserData = commitUserData;
         if (doIncrementVersion) {
             segmentInfos.changed();
@@ -3923,7 +3924,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      * deletes file is saved.
      */
     synchronized private ReadersAndUpdates commitMergedDeletesAndUpdates(MergePolicy.OneMerge merge,
-                                                                         MergeState mergeState) throws IOException {
+        MergeState mergeState) throws IOException {
 
         mergeFinishedGen.incrementAndGet();
 
@@ -4272,6 +4273,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     }
 
     /**
+     * 执行Merge
      * Merges the indicated segments, replacing them in the stack with a
      * single segment.
      *
@@ -4283,6 +4285,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
 
         final long t0 = System.currentTimeMillis();
 
+        // TieredMergePolicy
         final MergePolicy mergePolicy = config.getMergePolicy();
         try {
             try {
@@ -4361,6 +4364,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
         }
 
         boolean isExternal = false;
+        // 验证这批 SegmentCommitInfo 是否合规
         for (SegmentCommitInfo info : merge.segments) {
             if (mergingSegments.contains(info)) {
                 if (infoStream.isEnabled("IW")) {
@@ -4447,6 +4451,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     final void mergeInit(MergePolicy.OneMerge merge) throws IOException {
 
         // Make sure any deletes that must be resolved before we commit the merge are complete:
+        // 所有的删除和更新需要在merge前被处理好, 此步骤就是对每个segment应用删除和更新, 包括term的, query的和 DocValues的
         bufferedUpdatesStream.waitApplyForMerge(merge.segments);
 
         boolean success = false;
@@ -4506,12 +4511,12 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
         final String mergeSegmentName = newSegmentName();
         // We set the min version to null for now, it will be set later by SegmentMerger
         SegmentInfo si = new SegmentInfo(directoryOrig, Version.LATEST, null, mergeSegmentName, -1, false, codec,
-            Collections.emptyMap(),
-            StringHelper.randomId(), new HashMap<>(), config.getIndexSort());
+            Collections.emptyMap(), StringHelper.randomId(), new HashMap<>(), config.getIndexSort());
         Map<String, String> details = new HashMap<>();
         details.put("mergeMaxNumSegments", "" + merge.maxNumSegments);
         details.put("mergeFactor", Integer.toString(merge.segments.size()));
         setDiagnostics(si, SOURCE_MERGE, details);
+        // merge 设置 segmentCommitInfo, 也就是提交点
         merge.setMergeInfo(new SegmentCommitInfo(si, 0, -1L, -1L, -1L));
 
         if (infoStream.isEnabled("IW")) {
@@ -4614,6 +4619,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     }
 
     /**
+     * 实际执行Merge
      * Does the actual (time-consuming) work of the merge,
      * but without holding synchronized lock on IndexWriter
      * instance
@@ -5264,7 +5270,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
      * method is called, because they are not allowed within a compound file.
      */
     final void createCompoundFile(InfoStream infoStream, TrackingDirectoryWrapper directory, final SegmentInfo info,
-                                  IOContext context) throws IOException {
+        IOContext context) throws IOException {
 
         // maybe this check is not needed, but why take the risk?
         if (!directory.getCreatedFiles().isEmpty()) {
