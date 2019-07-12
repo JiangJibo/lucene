@@ -78,6 +78,7 @@ import org.apache.lucene.util.Version;
 import static org.apache.lucene.search.DocIdSetIterator.NO_MORE_DOCS;
 
 /**
+ * 同一时间应用内只能有一个IndexWriter实例
  * An <code>IndexWriter</code> creates and maintains an index.
  *
  * <p>The {@link OpenMode} option on
@@ -3421,6 +3422,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
                     boolean flushSuccess = false;
                     boolean success = false;
                     try {
+                        // Flush所有的DWPT
                         seqNo = docWriter.flushAllThreads();
                         if (seqNo < 0) {
                             anyChanges = true;
@@ -3433,6 +3435,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
                         }
 
                         // cannot pass triggerMerges=true here else it can lead to deadlock:
+                        // 可能触发Merge
                         processEvents(false, false);
 
                         flushSuccess = true;

@@ -84,7 +84,7 @@ final class DocumentsWriterFlushControl implements Accountable {
     private final InfoStream infoStream;
 
     DocumentsWriterFlushControl(DocumentsWriter documentsWriter, LiveIndexWriterConfig config,
-                                BufferedUpdatesStream bufferedUpdatesStream) {
+        BufferedUpdatesStream bufferedUpdatesStream) {
         this.infoStream = config.getInfoStream();
         this.stallControl = new DocumentsWriterStallControl();
         this.perThreadPool = documentsWriter.perThreadPool;
@@ -532,6 +532,9 @@ final class DocumentsWriterFlushControl implements Accountable {
         }
     }
 
+    /**
+     * @return 标记哪些DWPT需要被Flush
+     */
     long markForFullFlush() {
         final DocumentsWriterDeleteQueue flushingQueue;
         long seqNo;
@@ -555,7 +558,9 @@ final class DocumentsWriterFlushControl implements Accountable {
             documentsWriter.deleteQueue = newQueue;
         }
         final int limit = perThreadPool.getActiveThreadStateCount();
+        // 对所有的DWPT做设置, 如果其在内存中有数据，设置其 flushPending = true
         for (int i = 0; i < limit; i++) {
+            // 获取DWPT
             final ThreadState next = perThreadPool.getThreadState(i);
             next.lock();
             try {
@@ -574,6 +579,7 @@ final class DocumentsWriterFlushControl implements Accountable {
                     // this one is already a new DWPT
                     continue;
                 }
+                // 如果DWPT在内存里有数据，设置其需要Flush
                 addFlushableState(next);
             } finally {
                 next.unlock();
@@ -610,6 +616,9 @@ final class DocumentsWriterFlushControl implements Accountable {
         return true;
     }
 
+    /**
+     * 需要被Flush的DWPT缓冲
+     */
     private final List<DocumentsWriterPerThread> fullFlushBuffer = new ArrayList<>();
 
     void addFlushableState(ThreadState perThread) {
@@ -621,9 +630,11 @@ final class DocumentsWriterFlushControl implements Accountable {
         assert perThread.isInitialized();
         assert fullFlush;
         assert dwpt.deleteQueue != documentsWriter.deleteQueue;
+        // 如果DWPT的内存里有新的Doc数据
         if (dwpt.getNumDocsInRAM() > 0) {
             synchronized (this) {
                 if (!perThread.flushPending) {
+                    // 只要内存中有数据就设置其需要被Flush
                     setFlushPending(perThread);
                 }
                 final DocumentsWriterPerThread flushingDWPT = internalTryCheckOutForFlush(perThread);

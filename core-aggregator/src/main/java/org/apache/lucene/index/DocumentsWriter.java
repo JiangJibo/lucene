@@ -422,7 +422,8 @@ final class DocumentsWriter implements Closeable, Accountable {
         ensureOpen();
         boolean hasEvents = false;
 
-        if (flushControl.anyStalledThreads() || (flushControl.numQueuedFlushes() > 0 && config.checkPendingFlushOnUpdate)) {
+        if (flushControl.anyStalledThreads() || (flushControl.numQueuedFlushes() > 0
+            && config.checkPendingFlushOnUpdate)) {
             // Help out flushing any queued DWPTs so we can un-stall:
             do {
                 // Try pick up pending threads here if possible
@@ -463,7 +464,7 @@ final class DocumentsWriter implements Closeable, Accountable {
     }
 
     long updateDocuments(final Iterable<? extends Iterable<? extends IndexableField>> docs, final Analyzer analyzer,
-                         final Term delTerm) throws IOException, AbortingException {
+        final Term delTerm) throws IOException, AbortingException {
 
         boolean hasEvents = preUpdate();
 
@@ -518,7 +519,7 @@ final class DocumentsWriter implements Closeable, Accountable {
      * @throws AbortingException
      */
     long updateDocument(final Iterable<? extends IndexableField> doc, final Analyzer analyzer,
-                        final Term delTerm) throws IOException, AbortingException {
+        final Term delTerm) throws IOException, AbortingException {
 
         // 查看是否有待flush的task
         boolean hasEvents = preUpdate();

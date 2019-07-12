@@ -60,6 +60,7 @@ final class DocumentsWriterPerThreadPool {
         /**
          * 指定当前DWPT是否要被Flush
          * 当内存中未Flush的数据总量超过16MB时, 找出所有DWPT中未Flush数据链最大的那个,然后设置其要被刷新
+         * 或者主动Commit是只要当前DWPT的内存中有数据就需要被Flush
          */
         volatile boolean flushPending = false;
         // TODO this should really be part of DocumentsWriterFlushControl
