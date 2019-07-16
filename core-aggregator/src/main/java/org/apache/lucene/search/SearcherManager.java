@@ -144,10 +144,13 @@ public final class SearcherManager extends ReferenceManager<IndexSearcher> {
     protected IndexSearcher refreshIfNeeded(IndexSearcher referenceToRefresh) throws IOException {
         final IndexReader r = referenceToRefresh.getIndexReader();
         assert r instanceof DirectoryReader : "searcher's IndexReader should be a DirectoryReader, but got " + r;
+        // 对当前索引目录生成一个新的Reader
         final IndexReader newReader = DirectoryReader.openIfChanged((DirectoryReader)r);
+        // 如果新的Reader == null, 也就是说目录内数据未发生变化
         if (newReader == null) {
             return null;
         } else {
+            // 通过新的Reader 生成新的IndexSearcher
             return getSearcher(searcherFactory, newReader, r);
         }
     }
