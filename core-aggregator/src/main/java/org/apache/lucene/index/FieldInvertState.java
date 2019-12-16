@@ -42,6 +42,9 @@ public final class FieldInvertState {
    * term的长度
    */
   int length;
+  /**
+   * 被抹去的词的个数, positionIncrement == 0
+   */
   int numOverlap;
   int offset;
   int maxTermFrequency;
