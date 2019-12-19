@@ -36,6 +36,7 @@ import org.apache.lucene.util.SmallFloat;
  * Gaithersburg, USA, November 1994.
  */
 public class BM25Similarity extends Similarity {
+
     private final float k1;
     private final float b;
 
@@ -220,7 +221,7 @@ public class BM25Similarity extends Similarity {
 
     @Override
     public final SimWeight computeWeight(float boost, CollectionStatistics collectionStats,
-        TermStatistics... termStats) {
+                                         TermStatistics... termStats) {
         Explanation idf = termStats.length == 1 ? idfExplain(collectionStats, termStats[0]) : idfExplain(
             collectionStats, termStats);
         float avgdl = avgFieldLength(collectionStats);
@@ -242,6 +243,7 @@ public class BM25Similarity extends Similarity {
     }
 
     private class BM25DocScorer extends SimScorer {
+
         private final BM25Stats stats;
         private final float weightValue; // boost * idf * (k1 + 1)
         private final NumericDocValues norms;
@@ -267,6 +269,14 @@ public class BM25Similarity extends Similarity {
             }
         }
 
+        /**
+         * 给当个document算分
+         *
+         * @param doc  document id within the inverted index segment
+         * @param freq sloppy term frequency
+         * @return
+         * @throws IOException
+         */
         @Override
         public float score(int doc, float freq) throws IOException {
             // if there are no norms, we act as if b=0
@@ -303,6 +313,7 @@ public class BM25Similarity extends Similarity {
      * Collection statistics for the BM25 model.
      */
     private static class BM25Stats extends SimWeight {
+
         /**
          * BM25's idf
          */
@@ -342,7 +353,7 @@ public class BM25Similarity extends Similarity {
     }
 
     private Explanation explainTFNorm(int doc, Explanation freq, BM25Stats stats, NumericDocValues norms,
-        float[] lengthCache) throws IOException {
+                                      float[] lengthCache) throws IOException {
         List<Explanation> subs = new ArrayList<>();
         subs.add(freq);
         subs.add(Explanation.match(k1, "parameter k1"));
@@ -370,7 +381,7 @@ public class BM25Similarity extends Similarity {
     }
 
     private Explanation explainScore(int doc, Explanation freq, BM25Stats stats, NumericDocValues norms,
-        float[] lengthCache) throws IOException {
+                                     float[] lengthCache) throws IOException {
         Explanation boostExpl = Explanation.match(stats.boost, "boost");
         List<Explanation> subs = new ArrayList<>();
         if (boostExpl.getValue() != 1.0f) { subs.add(boostExpl); }
