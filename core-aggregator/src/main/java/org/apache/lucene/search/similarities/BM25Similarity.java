@@ -222,8 +222,10 @@ public class BM25Similarity extends Similarity {
     @Override
     public final SimWeight computeWeight(float boost, CollectionStatistics collectionStats,
                                          TermStatistics... termStats) {
+        // 计算IDF
         Explanation idf = termStats.length == 1 ? idfExplain(collectionStats, termStats[0]) : idfExplain(
             collectionStats, termStats);
+        // 此Field的平均term长度, term是唯一的
         float avgdl = avgFieldLength(collectionStats);
 
         float[] oldCache = new float[256];
