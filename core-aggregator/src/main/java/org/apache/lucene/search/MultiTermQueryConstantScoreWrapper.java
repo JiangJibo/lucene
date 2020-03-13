@@ -137,18 +137,20 @@ final class MultiTermQueryConstantScoreWrapper<Q extends MultiTermQuery> extends
           // field does not exist
           return new WeightOrDocIdSet((DocIdSet) null);
         }
-
+        // 收集当查询term的工具，可能是多个，比如TermsQuery
         final TermsEnum termsEnum = query.getTermsEnum(terms);
         assert termsEnum != null;
 
         PostingsEnum docs = null;
-
+        // 收集到的term数据, 可能是多个
         final List<TermAndState> collectedTerms = new ArrayList<>();
         if (collectTerms(context, termsEnum, collectedTerms)) {
           // build a boolean query
           BooleanQuery.Builder bq = new BooleanQuery.Builder();
+          // 遍历每个term
           for (TermAndState t : collectedTerms) {
             final TermContext termContext = new TermContext(searcher.getTopReaderContext());
+            // 想term上下文注册当前term的数据
             termContext.register(t.state, context.ord, t.docFreq, t.totalTermFreq);
             bq.add(new TermQuery(new Term(query.field, t.term), termContext), Occur.SHOULD);
           }
