@@ -255,6 +255,7 @@ public class BooleanQuery extends Query implements Iterable<BooleanClause> {
         // recursively rewrite
         {
             BooleanQuery.Builder builder = new BooleanQuery.Builder();
+            // 最少需要匹配几个should
             builder.setMinimumNumberShouldMatch(getMinimumNumberShouldMatch());
             boolean actuallyRewritten = false;
             for (BooleanClause clause : this) {
@@ -330,8 +331,9 @@ public class BooleanQuery extends Query implements Iterable<BooleanClause> {
             final Collection<Query> shoulds = clauseSets.get(Occur.SHOULD);
 
             Set<Query> intersection = new HashSet<>(filters);
+            // 保留既是Filter 也是 Should 的 clause
             intersection.retainAll(shoulds);
-
+            // 如果存在这种clause
             if (intersection.isEmpty() == false) {
                 BooleanQuery.Builder builder = new BooleanQuery.Builder();
                 int minShouldMatch = getMinimumNumberShouldMatch();
@@ -352,11 +354,13 @@ public class BooleanQuery extends Query implements Iterable<BooleanClause> {
             }
         }
 
-        // Deduplicate SHOULD clauses by summing up their boosts
+        // Deduplicate SHOULD clauses by summing up their boosts  重复的should，累计相乘他们的boosts
         if (clauseSets.get(Occur.SHOULD).size() > 0 && minimumNumberShouldMatch <= 1) {
             Map<Query, Double> shouldClauses = new HashMap<>();
             for (Query query : clauseSets.get(Occur.SHOULD)) {
                 double boost = 1;
+                // 累计相乘他们的boosts, 由此可以看出, Should 的顺序影响他们的boosts
+                // 比如3个should， 每个的boosts都是0.5， 则第一个是0.5，第二个0.25，第三个0.125。所以重要的should放前面
                 while (query instanceof BoostQuery) {
                     BoostQuery bq = (BoostQuery)query;
                     boost *= bq.getBoost();

@@ -337,6 +337,7 @@ public class TopDocs {
             // 从所有的分片中统计出topN
             hits = new ScoreDoc[Math.min(size, availHitCount - start)];
             int requestedResultWindow = start + size;
+            // 需要提取的数据量, 如果是分页的话，那么是 start + size
             int numIterOnHits = Math.min(availHitCount, requestedResultWindow);
             int hitUpto = 0;
             // 遍历N次获取topN

@@ -454,6 +454,11 @@ public class IndexSearcher {
                 return TopScoreDocCollector.create(cappedNumHits, after);
             }
 
+            /** 将多个segment的结果集合并，然后reduce
+             * @param collectors
+             * @return
+             * @throws IOException
+             */
             @Override
             public TopDocs reduce(Collection<TopScoreDocCollector> collectors) throws IOException {
                 final TopDocs[] topDocs = new TopDocs[collectors.size()];
