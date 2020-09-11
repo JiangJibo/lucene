@@ -24,9 +24,13 @@ import java.util.List;
  * {@link IndexReaderContext} for {@link LeafReader} instances.
  */
 public final class LeafReaderContext extends IndexReaderContext {
-  /** The readers ord in the top-level's leaves array */
+  /** The readers ord in the top-level's leaves array, 第几个segment */
   public final int ord;
-  /** The readers absolute doc base */
+
+  /**
+   * The readers absolute doc base
+   *  当前segment的第一个doc的id
+   */
   public final int docBase;
   
   private final LeafReader reader;

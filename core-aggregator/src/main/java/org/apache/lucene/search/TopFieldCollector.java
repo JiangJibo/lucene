@@ -129,6 +129,10 @@ public abstract class TopFieldCollector extends TopDocsCollector<Entry> {
 
             return new MultiComparatorLeafCollector(comparators, reverseMul, mayNeedScoresTwice) {
 
+                /**
+                 * @param doc document在segment里的序号，从0开始，全局序号加上docBase
+                 * @throws IOException
+                 */
                 @Override
                 public void collect(int doc) throws IOException {
                     float score = Float.NaN;
@@ -166,7 +170,7 @@ public abstract class TopFieldCollector extends TopDocsCollector<Entry> {
                         updateBottom(doc, score);
                         comparator.setBottom(bottom.slot);
                     } else {
-                        // Startup transient: queue hasn't gathered numHits yet
+                        // Startup transient: queue hasn't gathered numHits yet, 放在comparator的待排序数组里的位置,   docIDs[slot] = docBase + doc;
                         final int slot = totalHits - 1;
 
                         if (trackDocScores && !trackMaxScore) {
