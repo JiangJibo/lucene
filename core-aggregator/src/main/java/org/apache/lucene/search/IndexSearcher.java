@@ -582,6 +582,7 @@ public class IndexSearcher {
             throw new IllegalArgumentException("after.doc exceeds the number of documents in the reader: after.doc="
                 + after.doc + " limit=" + limit);
         }
+        // 获取条数
         final int cappedNumHits = Math.min(numHits, limit);
         final Sort rewrittenSort = sort.rewrite(this);
 
@@ -686,6 +687,7 @@ public class IndexSearcher {
         // TODO: should we make this
         // threaded...?  the Collector could be sync'd?
         // always use single thread:
+        // 每个segment 就是一个leaf
         for (LeafReaderContext ctx : leaves) { // search each subreader
             //
             final LeafCollector leafCollector;

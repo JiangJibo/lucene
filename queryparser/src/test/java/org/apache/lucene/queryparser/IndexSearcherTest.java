@@ -1,6 +1,7 @@
 package org.apache.lucene.queryparser;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -16,6 +17,7 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.RAMDirectory;
 import org.junit.Test;
 
@@ -30,9 +32,9 @@ public class IndexSearcherTest {
         Analyzer analyzer = new StandardAnalyzer();
 
         // Store the index in memory:
-        Directory directory = new RAMDirectory();
+        //Directory directory = new RAMDirectory();
         // To store an index on disk, use this instead:
-        //Directory directory = FSDirectory.open("/tmp/testindex");
+        Directory directory = FSDirectory.open(Paths.get("D:\\lucene-data"));
         IndexWriterConfig config = new IndexWriterConfig(analyzer);
         IndexWriter iwriter = new IndexWriter(directory, config);
         Document doc1 = new Document();

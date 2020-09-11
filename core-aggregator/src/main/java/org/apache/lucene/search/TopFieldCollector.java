@@ -493,6 +493,7 @@ public abstract class TopFieldCollector extends TopDocsCollector<Entry> {
             throw new IllegalArgumentException("numHits must be > 0; please use TotalHitCountCollector if you just need the total hit count");
         }
 
+        // 单个field OneComparatorFieldValueHitQueue;  多个field:MultiComparatorsFieldValueHitQueue
         FieldValueHitQueue<Entry> queue = FieldValueHitQueue.create(sort.fields, numHits);
 
         if (after == null) {
