@@ -398,6 +398,7 @@ public final class SegmentInfos implements Cloneable, Iterable<SegmentCommitInfo
             input.readBytes(segmentID, 0, segmentID.length);
 
             Codec codec = readCodec(input);
+            // 读取 .si 文件, SegmentInfo
             SegmentInfo info = codec.segmentInfoFormat().read(directory, segName, segmentID, IOContext.READ);
             info.setCodec(codec);
             totalDocs += info.maxDoc();

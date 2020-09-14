@@ -18,7 +18,9 @@ import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.IntRange;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -37,15 +39,16 @@ public class Ipv4IndexWriterTest {
         File txt = new File("C:\\Users\\wb-jjb318191\\Desktop\\ipv4.txt");
         BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(txt)));
         String line;
-        int total = 0, num = 0;
+        int total = 0;
         List<Map<String, Object>> values = new ArrayList<>(1000);
 
         IndexWriter indexWriter = buildIndexWriter();
         FieldType keywordType = keywordFieldType();
+        FieldType numberType = numberFieldType();
 
         while ((line = reader.readLine()) != null) {
-            if (total++ % 6 != 0) {
-                continue;
+            if (++total % 10000 == 0) {
+                System.gc();
             }
             int index = 0;
             List<String> splits = Splitter.on(",").splitToList(line);
@@ -62,8 +65,7 @@ public class Ipv4IndexWriterTest {
             values.add(record);
 
             Document document = new Document();
-            document.add(new Field("start", record.get("start").toString(), keywordType));
-            document.add(new Field("end", record.get("end").toString(), keywordType));
+            document.add(new IntRange("range", new int[] {(int)record.get("start")}, new int[] {(int)record.get("end")}));
             document.add(new Field("country", record.get("country").toString(), keywordType));
             document.add(new Field("province", record.get("province").toString(), keywordType));
             document.add(new Field("city", record.get("city").toString(), keywordType));
@@ -71,7 +73,6 @@ public class Ipv4IndexWriterTest {
             document.add(new Field("isp", record.get("isp").toString(), keywordType));
             document.add(new Field("address", record.get("address").toString(), TextField.TYPE_STORED));
             indexWriter.addDocument(document);
-            num++;
         }
         indexWriter.flush();
         // close时会触发一次merge
@@ -91,6 +92,16 @@ public class Ipv4IndexWriterTest {
         fieldType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
         fieldType.setTokenized(false);
         fieldType.setStored(true);
+        fieldType.freeze();
+        return fieldType;
+    }
+
+    private FieldType numberFieldType() {
+        FieldType fieldType = new FieldType();
+        fieldType.setIndexOptions(IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
+        fieldType.setTokenized(false);
+        fieldType.setStored(true);
+        fieldType.setDocValuesType(DocValuesType.NUMERIC);
         fieldType.freeze();
         return fieldType;
     }
