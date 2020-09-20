@@ -35,8 +35,8 @@ import org.junit.Test;
 public class Ipv4IndexWriterTest {
 
     @Test
-    public void writeIpv4Data() throws IOException {
-        File txt = new File("C:\\Users\\wb-jjb318191\\Desktop\\ipv4.txt");
+    public void writeIpv4Data() throws IOException, InterruptedException {
+        File txt = new File("C:\\Users\\JiangJibo\\Desktop\\ipv4.txt");
         BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(txt)));
         String line;
         int total = 0;
@@ -47,8 +47,12 @@ public class Ipv4IndexWriterTest {
         FieldType numberType = numberFieldType();
 
         while ((line = reader.readLine()) != null) {
-            if (++total % 10000 == 0) {
+            if (++total % 2 != 0) {
+                continue;
+            }
+            if(total % 100000 == 0){
                 System.gc();
+                Thread.sleep(3000);
             }
             int index = 0;
             List<String> splits = Splitter.on(",").splitToList(line);
@@ -109,7 +113,7 @@ public class Ipv4IndexWriterTest {
     @Test
     public void testMerge() throws IOException {
         IndexWriter indexWriter = buildIndexWriter();
-        indexWriter.forceMerge(1);
+        indexWriter.forceMerge(4);
         indexWriter.close();
     }
 

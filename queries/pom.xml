@@ -29,6 +29,11 @@
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-expressions</artifactId>
         </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
 
