@@ -37,7 +37,7 @@ import org.junit.Test;
 public class Ipv4IndexWriterTest {
 
     @Test
-    public void writeIpv4Data() throws IOException, InterruptedException {
+    public void writeIpv4Data() throws IOException {
         File txt = new File("C:\\Users\\wb-jjb318191\\Desktop\\ipv4.txt");
         BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(txt)));
         String line;

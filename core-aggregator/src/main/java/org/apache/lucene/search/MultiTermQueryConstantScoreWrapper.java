@@ -16,7 +16,6 @@
  */
 package org.apache.lucene.search;
 
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,182 +42,188 @@ import org.apache.lucene.util.DocIdSetBuilder;
  */
 final class MultiTermQueryConstantScoreWrapper<Q extends MultiTermQuery> extends Query {
 
-  // mtq that matches 16 terms or less will be executed as a regular disjunction
-  private static final int BOOLEAN_REWRITE_TERM_COUNT_THRESHOLD = 16;
+    // mtq that matches 16 terms or less will be executed as a regular disjunction
+    private static final int BOOLEAN_REWRITE_TERM_COUNT_THRESHOLD = 16;
 
-  private static class TermAndState {
-    final BytesRef term;
-    final TermState state;
-    final int docFreq;
-    final long totalTermFreq;
+    private static class TermAndState {
 
-    TermAndState(BytesRef term, TermState state, int docFreq, long totalTermFreq) {
-      this.term = term;
-      this.state = state;
-      this.docFreq = docFreq;
-      this.totalTermFreq = totalTermFreq;
-    }
-  }
+        final BytesRef term;
+        final TermState state;
+        final int docFreq;
+        final long totalTermFreq;
 
-  private static class WeightOrDocIdSet {
-    final Weight weight;
-    final DocIdSet set;
-
-    WeightOrDocIdSet(Weight weight) {
-      this.weight = Objects.requireNonNull(weight);
-      this.set = null;
+        TermAndState(BytesRef term, TermState state, int docFreq, long totalTermFreq) {
+            this.term = term;
+            this.state = state;
+            this.docFreq = docFreq;
+            this.totalTermFreq = totalTermFreq;
+        }
     }
 
-    WeightOrDocIdSet(DocIdSet bitset) {
-      this.set = bitset;
-      this.weight = null;
+    private static class WeightOrDocIdSet {
+
+        final Weight weight;
+        final DocIdSet set;
+
+        WeightOrDocIdSet(Weight weight) {
+            this.weight = Objects.requireNonNull(weight);
+            this.set = null;
+        }
+
+        WeightOrDocIdSet(DocIdSet bitset) {
+            this.set = bitset;
+            this.weight = null;
+        }
     }
-  }
 
-  protected final Q query;
+    protected final Q query;
 
-  /**
-   * Wrap a {@link MultiTermQuery} as a Filter.
-   */
-  protected MultiTermQueryConstantScoreWrapper(Q query) {
-      this.query = query;
-  }
+    /**
+     * Wrap a {@link MultiTermQuery} as a Filter.
+     */
+    protected MultiTermQueryConstantScoreWrapper(Q query) {
+        this.query = query;
+    }
 
-  @Override
-  public String toString(String field) {
-    // query.toString should be ok for the filter, too, if the query boost is 1.0f
-    return query.toString(field);
-  }
+    @Override
+    public String toString(String field) {
+        // query.toString should be ok for the filter, too, if the query boost is 1.0f
+        return query.toString(field);
+    }
 
-  @Override
-  public final boolean equals(final Object other) {
-    return sameClassAs(other) &&
-           query.equals(((MultiTermQueryConstantScoreWrapper<?>) other).query);
-  }
+    @Override
+    public final boolean equals(final Object other) {
+        return sameClassAs(other) &&
+            query.equals(((MultiTermQueryConstantScoreWrapper<?>)other).query);
+    }
 
-  @Override
-  public final int hashCode() {
-    return 31 * classHash() + query.hashCode();
-  }
+    @Override
+    public final int hashCode() {
+        return 31 * classHash() + query.hashCode();
+    }
 
-  /** Returns the encapsulated query */
-  public Q getQuery() { return query; }
-  
-  /** Returns the field name for this query */
-  public final String getField() { return query.getField(); }
+    /**
+     * Returns the encapsulated query
+     */
+    public Q getQuery() { return query; }
 
-  @Override
-  public Weight createWeight(IndexSearcher searcher, boolean needsScores, float boost) throws IOException {
-    return new ConstantScoreWeight(this, boost) {
+    /**
+     * Returns the field name for this query
+     */
+    public final String getField() { return query.getField(); }
 
-      /** Try to collect terms from the given terms enum and return true iff all
-       *  terms could be collected. If {@code false} is returned, the enum is
-       *  left positioned on the next term. */
-      private boolean collectTerms(LeafReaderContext context, TermsEnum termsEnum, List<TermAndState> terms) throws IOException {
-        final int threshold = Math.min(BOOLEAN_REWRITE_TERM_COUNT_THRESHOLD, BooleanQuery.getMaxClauseCount());
-        for (int i = 0; i < threshold; ++i) {
-          final BytesRef term = termsEnum.next();
-          if (term == null) {
-            return true;
-          }
-          TermState state = termsEnum.termState();
-          terms.add(new TermAndState(BytesRef.deepCopyOf(term), state, termsEnum.docFreq(), termsEnum.totalTermFreq()));
-        }
-        return termsEnum.next() == null;
-      }
+    @Override
+    public Weight createWeight(IndexSearcher searcher, boolean needsScores, float boost) throws IOException {
+        return new ConstantScoreWeight(this, boost) {
 
-      /**
-       * On the given leaf context, try to either rewrite to a disjunction if
-       * there are few terms, or build a bitset containing matching docs.
-       */
-      private WeightOrDocIdSet rewrite(LeafReaderContext context) throws IOException {
-        final Terms terms = context.reader().terms(query.field);
-        if (terms == null) {
-          // field does not exist
-          return new WeightOrDocIdSet((DocIdSet) null);
-        }
-        // 收集当查询term的工具，可能是多个，比如TermsQuery
-        final TermsEnum termsEnum = query.getTermsEnum(terms);
-        assert termsEnum != null;
+            @Override
+            public BulkScorer bulkScorer(LeafReaderContext context) throws IOException {
+                final WeightOrDocIdSet weightOrBitSet = rewrite(context);
+                if (weightOrBitSet.weight != null) {
+                    return weightOrBitSet.weight.bulkScorer(context);
+                } else {
+                    final Scorer scorer = scorer(weightOrBitSet.set);
+                    if (scorer == null) {
+                        return null;
+                    }
+                    return new DefaultBulkScorer(scorer);
+                }
+            }
 
-        PostingsEnum docs = null;
-        // 收集到的term数据, 可能是多个
-        final List<TermAndState> collectedTerms = new ArrayList<>();
-        if (collectTerms(context, termsEnum, collectedTerms)) {
-          // build a boolean query
-          BooleanQuery.Builder bq = new BooleanQuery.Builder();
-          // 遍历每个term
-          for (TermAndState t : collectedTerms) {
-            final TermContext termContext = new TermContext(searcher.getTopReaderContext());
-            // 想term上下文注册当前term的数据
-            termContext.register(t.state, context.ord, t.docFreq, t.totalTermFreq);
-            bq.add(new TermQuery(new Term(query.field, t.term), termContext), Occur.SHOULD);
-          }
-          Query q = new ConstantScoreQuery(bq.build());
-          final Weight weight = searcher.rewrite(q).createWeight(searcher, needsScores, score());
-          return new WeightOrDocIdSet(weight);
-        }
+            @Override
+            public Scorer scorer(LeafReaderContext context) throws IOException {
+                final WeightOrDocIdSet weightOrBitSet = rewrite(context);
+                if (weightOrBitSet.weight != null) {
+                    return weightOrBitSet.weight.scorer(context);
+                } else {
+                    return scorer(weightOrBitSet.set);
+                }
+            }
 
-        // Too many terms: go back to the terms we already collected and start building the bit set
-        DocIdSetBuilder builder = new DocIdSetBuilder(context.reader().maxDoc(), terms);
-        if (collectedTerms.isEmpty() == false) {
-          TermsEnum termsEnum2 = terms.iterator();
-          for (TermAndState t : collectedTerms) {
-            termsEnum2.seekExact(t.term, t.state);
-            docs = termsEnum2.postings(docs, PostingsEnum.NONE);
-            builder.add(docs);
-          }
-        }
+            @Override
+            public boolean isCacheable(LeafReaderContext ctx) {
+                return true;
+            }
 
-        // Then keep filling the bit set with remaining terms
-        do {
-          docs = termsEnum.postings(docs, PostingsEnum.NONE);
-          builder.add(docs);
-        } while (termsEnum.next() != null);
+            /** Try to collect terms from the given terms enum and return true iff all
+             *  terms could be collected. If {@code false} is returned, the enum is
+             *  left positioned on the next term. */
+            private boolean collectTerms(LeafReaderContext context, TermsEnum termsEnum, List<TermAndState> terms) throws IOException {
+                final int threshold = Math.min(BOOLEAN_REWRITE_TERM_COUNT_THRESHOLD, BooleanQuery.getMaxClauseCount());
+                for (int i = 0; i < threshold; ++i) {
+                    final BytesRef term = termsEnum.next();
+                    if (term == null) {
+                        return true;
+                    }
+                    TermState state = termsEnum.termState();
+                    terms.add(new TermAndState(BytesRef.deepCopyOf(term), state, termsEnum.docFreq(), termsEnum.totalTermFreq()));
+                }
+                return termsEnum.next() == null;
+            }
 
-        return new WeightOrDocIdSet(builder.build());
-      }
+            /**
+             * On the given leaf context, try to either rewrite to a disjunction if
+             * there are few terms, or build a bitset containing matching docs.
+             */
+            private WeightOrDocIdSet rewrite(LeafReaderContext context) throws IOException {
+                final Terms terms = context.reader().terms(query.field);
+                if (terms == null) {
+                    // field does not exist
+                    return new WeightOrDocIdSet((DocIdSet)null);
+                }
+                // 收集当查询term的工具，可能是多个，比如TermsQuery
+                final TermsEnum termsEnum = query.getTermsEnum(terms);
+                assert termsEnum != null;
 
-      private Scorer scorer(DocIdSet set) throws IOException {
-        if (set == null) {
-          return null;
-        }
-        final DocIdSetIterator disi = set.iterator();
-        if (disi == null) {
-          return null;
-        }
-        return new ConstantScoreScorer(this, score(), disi);
-      }
+                PostingsEnum docs = null;
+                // 收集到的term数据, 可能是多个
+                final List<TermAndState> collectedTerms = new ArrayList<>();
+                if (collectTerms(context, termsEnum, collectedTerms)) {
+                    // build a boolean query
+                    BooleanQuery.Builder bq = new BooleanQuery.Builder();
+                    // 遍历每个term
+                    for (TermAndState t : collectedTerms) {
+                        final TermContext termContext = new TermContext(searcher.getTopReaderContext());
+                        // 想term上下文注册当前term的数据
+                        termContext.register(t.state, context.ord, t.docFreq, t.totalTermFreq);
+                        bq.add(new TermQuery(new Term(query.field, t.term), termContext), Occur.SHOULD);
+                    }
+                    Query q = new ConstantScoreQuery(bq.build());
+                    final Weight weight = searcher.rewrite(q).createWeight(searcher, needsScores, score());
+                    return new WeightOrDocIdSet(weight);
+                }
 
-      @Override
-      public BulkScorer bulkScorer(LeafReaderContext context) throws IOException {
-        final WeightOrDocIdSet weightOrBitSet = rewrite(context);
-        if (weightOrBitSet.weight != null) {
-          return weightOrBitSet.weight.bulkScorer(context);
-        } else {
-          final Scorer scorer = scorer(weightOrBitSet.set);
-          if (scorer == null) {
-            return null;
-          }
-          return new DefaultBulkScorer(scorer);
-        }
-      }
+                // Too many terms: go back to the terms we already collected and start building the bit set
+                DocIdSetBuilder builder = new DocIdSetBuilder(context.reader().maxDoc(), terms);
+                if (collectedTerms.isEmpty() == false) {
+                    TermsEnum termsEnum2 = terms.iterator();
+                    for (TermAndState t : collectedTerms) {
+                        termsEnum2.seekExact(t.term, t.state);
+                        docs = termsEnum2.postings(docs, PostingsEnum.NONE);
+                        builder.add(docs);
+                    }
+                }
 
-      @Override
-      public Scorer scorer(LeafReaderContext context) throws IOException {
-        final WeightOrDocIdSet weightOrBitSet = rewrite(context);
-        if (weightOrBitSet.weight != null) {
-          return weightOrBitSet.weight.scorer(context);
-        } else {
-          return scorer(weightOrBitSet.set);
-        }
-      }
+                // Then keep filling the bit set with remaining terms
+                do {
+                    docs = termsEnum.postings(docs, PostingsEnum.NONE);
+                    builder.add(docs);
+                } while (termsEnum.next() != null);
 
-      @Override
-      public boolean isCacheable(LeafReaderContext ctx) {
-        return true;
-      }
+                return new WeightOrDocIdSet(builder.build());
+            }
 
-    };
-  }
+            private Scorer scorer(DocIdSet set) throws IOException {
+                if (set == null) {
+                    return null;
+                }
+                final DocIdSetIterator disi = set.iterator();
+                if (disi == null) {
+                    return null;
+                }
+                return new ConstantScoreScorer(this, score(), disi);
+            }
+
+        };
+    }
 }

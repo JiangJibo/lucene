@@ -18,6 +18,7 @@ package org.apache.lucene.search.similarities;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.lucene.index.FieldInvertState;
@@ -37,6 +38,9 @@ import org.apache.lucene.util.SmallFloat;
  */
 public class BM25Similarity extends Similarity {
 
+    /**
+     * 控制tf的值，会在0~k+1
+     */
     private final float k1;
     private final float b;
 
@@ -102,8 +106,10 @@ public class BM25Similarity extends Similarity {
                 // theoretical case only: remove!
                 return 1f;
             }
+            // field 每个doc里的有效term的总数,一个term出现多少算一个
             sumTotalTermFreq = collectionStats.sumDocFreq();
         } else {
+            // field里所有term出现的次数的总数，一个term可能出现多次
             sumTotalTermFreq = collectionStats.sumTotalTermFreq();
         }
         final long docCount = collectionStats.docCount() == -1 ? collectionStats.maxDoc() : collectionStats.docCount();
@@ -148,9 +154,12 @@ public class BM25Similarity extends Similarity {
         }
         OLD_LENGTH_TABLE[0] = 1.0f / OLD_LENGTH_TABLE[255]; // otherwise inf
 
+        String str = "";
         for (int i = 0; i < 256; i++) {
             LENGTH_TABLE[i] = SmallFloat.byte4ToInt((byte)i);
+            str = str + "\t" + LENGTH_TABLE[i];
         }
+        System.out.println(str);
     }
 
     @Override
@@ -219,6 +228,14 @@ public class BM25Similarity extends Similarity {
         return Explanation.match((float)idf, "idf(), sum of:", details);
     }
 
+    /**
+     * 计算相似性权重
+     *
+     * @param boost           a multiplicative factor to apply to the produces scores
+     * @param collectionStats collection-level statistics, such as the number of tokens in the collection.
+     * @param termStats       term-level statistics, such as the document frequency of a term across the collection.
+     * @return
+     */
     @Override
     public final SimWeight computeWeight(float boost, CollectionStatistics collectionStats,
                                          TermStatistics... termStats) {

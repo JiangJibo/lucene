@@ -107,7 +107,7 @@ public class Ipv4IndexSearcherTest {
 
             @Override
             public boolean needsScores() {
-                return false;
+                return true;
             }
         };
         collector.replay(other);
