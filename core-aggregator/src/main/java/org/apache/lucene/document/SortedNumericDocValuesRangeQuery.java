@@ -36,116 +36,116 @@ import org.apache.lucene.search.Weight;
 
 abstract class SortedNumericDocValuesRangeQuery extends Query {
 
-  private final String field;
-  private final long lowerValue;
-  private final long upperValue;
+    private final String field;
+    private final long lowerValue;
+    private final long upperValue;
 
-  SortedNumericDocValuesRangeQuery(String field, long lowerValue, long upperValue) {
-    this.field = Objects.requireNonNull(field);
-    this.lowerValue = lowerValue;
-    this.upperValue = upperValue;
-  }
-
-  @Override
-  public boolean equals(Object obj) {
-    if (sameClassAs(obj) == false) {
-      return false;
+    SortedNumericDocValuesRangeQuery(String field, long lowerValue, long upperValue) {
+        this.field = Objects.requireNonNull(field);
+        this.lowerValue = lowerValue;
+        this.upperValue = upperValue;
     }
-    SortedNumericDocValuesRangeQuery that = (SortedNumericDocValuesRangeQuery) obj;
-    return Objects.equals(field, that.field)
-        && lowerValue == that.lowerValue
-        && upperValue == that.upperValue;
-  }
 
-  @Override
-  public int hashCode() {
-    int h = classHash();
-    h = 31 * h + field.hashCode();
-    h = 31 * h + Long.hashCode(lowerValue);
-    h = 31 * h + Long.hashCode(upperValue);
-    return h;
-  }
-
-  @Override
-  public String toString(String field) {
-    StringBuilder b = new StringBuilder();
-    if (this.field.equals(field) == false) {
-      b.append(this.field).append(":");
-    }
-    return b
-        .append("[")
-        .append(lowerValue)
-        .append(" TO ")
-        .append(upperValue)
-        .append("]")
-        .toString();
-  }
-
-  @Override
-  public Query rewrite(IndexReader reader) throws IOException {
-    if (lowerValue == Long.MIN_VALUE && upperValue == Long.MAX_VALUE) {
-      return new DocValuesFieldExistsQuery(field);
-    }
-    return super.rewrite(reader);
-  }
-
-  abstract SortedNumericDocValues getValues(LeafReader reader, String field) throws IOException;
-
-  @Override
-  public Weight createWeight(IndexSearcher searcher, boolean needsScores, float boost) throws IOException {
-    return new ConstantScoreWeight(this, boost) {
-
-      @Override
-      public boolean isCacheable(LeafReaderContext ctx) {
-        return DocValues.isCacheable(ctx, field);
-      }
-
-      @Override
-      public Scorer scorer(LeafReaderContext context) throws IOException {
-        SortedNumericDocValues values = getValues(context.reader(), field);
-        if (values == null) {
-          return null;
+    @Override
+    public boolean equals(Object obj) {
+        if (sameClassAs(obj) == false) {
+            return false;
         }
-        final NumericDocValues singleton = DocValues.unwrapSingleton(values);
-        final TwoPhaseIterator iterator;
-        if (singleton != null) {
-          iterator = new TwoPhaseIterator(singleton) {
+        SortedNumericDocValuesRangeQuery that = (SortedNumericDocValuesRangeQuery)obj;
+        return Objects.equals(field, that.field)
+            && lowerValue == that.lowerValue
+            && upperValue == that.upperValue;
+    }
+
+    @Override
+    public int hashCode() {
+        int h = classHash();
+        h = 31 * h + field.hashCode();
+        h = 31 * h + Long.hashCode(lowerValue);
+        h = 31 * h + Long.hashCode(upperValue);
+        return h;
+    }
+
+    @Override
+    public String toString(String field) {
+        StringBuilder b = new StringBuilder();
+        if (this.field.equals(field) == false) {
+            b.append(this.field).append(":");
+        }
+        return b
+            .append("[")
+            .append(lowerValue)
+            .append(" TO ")
+            .append(upperValue)
+            .append("]")
+            .toString();
+    }
+
+    @Override
+    public Query rewrite(IndexReader reader) throws IOException {
+        if (lowerValue == Long.MIN_VALUE && upperValue == Long.MAX_VALUE) {
+            return new DocValuesFieldExistsQuery(field);
+        }
+        return super.rewrite(reader);
+    }
+
+    abstract SortedNumericDocValues getValues(LeafReader reader, String field) throws IOException;
+
+    @Override
+    public Weight createWeight(IndexSearcher searcher, boolean needsScores, float boost) throws IOException {
+        return new ConstantScoreWeight(this, boost) {
+
             @Override
-            public boolean matches() throws IOException {
-              final long value = singleton.longValue();
-              return value >= lowerValue && value <= upperValue;
+            public boolean isCacheable(LeafReaderContext ctx) {
+                return DocValues.isCacheable(ctx, field);
             }
 
             @Override
-            public float matchCost() {
-              return 2; // 2 comparisons
-            }
-          };
-        } else {
-          iterator = new TwoPhaseIterator(values) {
-            @Override
-            public boolean matches() throws IOException {
-              for (int i = 0, count = values.docValueCount(); i < count; ++i) {
-                final long value = values.nextValue();
-                if (value < lowerValue) {
-                  continue;
+            public Scorer scorer(LeafReaderContext context) throws IOException {
+                SortedNumericDocValues values = getValues(context.reader(), field);
+                if (values == null) {
+                    return null;
                 }
-                // Values are sorted, so the first value that is >= lowerValue is our best candidate
-                return value <= upperValue;
-              }
-              return false; // all values were < lowerValue
+                final NumericDocValues singleton = DocValues.unwrapSingleton(values);
+                final TwoPhaseIterator iterator;
+                if (singleton != null) {
+                    iterator = new TwoPhaseIterator(singleton) {
+                        @Override
+                        public boolean matches() throws IOException {
+                            final long value = singleton.longValue();
+                            return value >= lowerValue && value <= upperValue;
+                        }
+
+                        @Override
+                        public float matchCost() {
+                            return 2; // 2 comparisons
+                        }
+                    };
+                } else {
+                    iterator = new TwoPhaseIterator(values) {
+                        @Override
+                        public boolean matches() throws IOException {
+                            for (int i = 0, count = values.docValueCount(); i < count; ++i) {
+                                final long value = values.nextValue();
+                                if (value < lowerValue) {
+                                    continue;
+                                }
+                                // Values are sorted, so the first value that is >= lowerValue is our best candidate
+                                return value <= upperValue;
+                            }
+                            return false; // all values were < lowerValue
+                        }
+
+                        @Override
+                        public float matchCost() {
+                            return 2; // 2 comparisons
+                        }
+                    };
+                }
+                return new ConstantScoreScorer(this, score(), iterator);
             }
 
-            @Override
-            public float matchCost() {
-              return 2; // 2 comparisons
-            }
-          };
-        }
-        return new ConstantScoreScorer(this, score(), iterator);
-      }
-
-    };
-  }
+        };
+    }
 
 }

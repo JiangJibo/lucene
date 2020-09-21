@@ -2,11 +2,14 @@ package org.apache.lucene.queryparser;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.List;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.SortedNumericDocValuesField;
 import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.CachingCollector;
 import org.apache.lucene.search.Collector;
@@ -19,7 +22,6 @@ import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.SortField.Type;
 import org.apache.lucene.search.TermQuery;
-import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
@@ -49,7 +51,7 @@ public class Ipv4IndexSearcherTest {
 
     @Test
     public void searchIpv4DataTest() throws IOException {
-        Query query = new TermQuery(new Term("address", new BytesRef("江苏省")));
+        Query query = new TermQuery(new Term("address", "江苏省"));
         ScoreDoc[] hits = isearcher.search(query, 4).scoreDocs;
         // Iterate through the results:
         for (int i = 0; i < hits.length; i++) {
@@ -65,7 +67,7 @@ public class Ipv4IndexSearcherTest {
         sort = Sort.RELEVANCE;
         sort = new Sort(new SortField("start", Type.LONG));
 
-        Query query = new TermQuery(new Term("address", new BytesRef("江苏省")));
+        Query query = new TermQuery(new Term("city", new BytesRef("杭州市")));
         ScoreDoc[] hits = isearcher.search(query, 4, Sort.INDEXORDER).scoreDocs;
         for (int i = 0; i < hits.length; i++) {
             Document hitDoc = isearcher.doc(hits[i].doc);
@@ -121,5 +123,7 @@ public class Ipv4IndexSearcherTest {
             System.out.println(hitDoc.get("start") + ":\t" + hitDoc.get("address"));
         }
     }
+
+
 
 }

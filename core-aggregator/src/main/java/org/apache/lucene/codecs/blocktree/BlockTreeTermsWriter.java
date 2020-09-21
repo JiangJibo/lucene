@@ -347,7 +347,7 @@ public final class BlockTreeTermsWriter extends FieldsConsumer {
             assert lastField == null || lastField.compareTo(field) < 0;
             lastField = field;
 
-            if (true) { System.out.println("BTTW.write field=" + field); }
+            //if (true) { System.out.println("BTTW.write field=" + field); }
 
             Terms terms = fields.terms(field);
             if (terms == null) {
@@ -359,14 +359,14 @@ public final class BlockTreeTermsWriter extends FieldsConsumer {
             while (true) {
                 BytesRef term = termsEnum.next();
                 if (true) {
-                    System.out.println("BTTW: next term " + term);
+                    //System.out.println("BTTW: next term " + term);
                 }
 
                 if (term == null) {
                     break;
                 }
 
-                System.out.println("write field=" + field + " term=" + brToString(term));
+                //System.out.println("write field=" + field + " term=" + brToString(term));
                 termsWriter.write(term, termsEnum);
             }
 

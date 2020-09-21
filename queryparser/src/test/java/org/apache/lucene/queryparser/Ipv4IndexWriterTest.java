@@ -19,11 +19,13 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.IntRange;
+import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DocValuesType;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.junit.Test;
@@ -35,7 +37,7 @@ import org.junit.Test;
 public class Ipv4IndexWriterTest {
 
     @Test
-    public void writeIpv4Data() throws IOException {
+    public void writeIpv4Data() throws IOException, InterruptedException {
         File txt = new File("C:\\Users\\wb-jjb318191\\Desktop\\ipv4.txt");
         BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(txt)));
         String line;
@@ -47,14 +49,14 @@ public class Ipv4IndexWriterTest {
         FieldType numberType = numberFieldType();
 
         while ((line = reader.readLine()) != null) {
-            if (++total % 10000 == 0) {
-                System.gc();
+            if (total++ % 2 != 0) {
+                continue;
             }
             int index = 0;
             List<String> splits = Splitter.on(",").splitToList(line);
             Map<String, Object> record = new HashMap<>();
-            record.put("start", IPv4Address.of(splits.get(index++)).toInt());
-            record.put("end", IPv4Address.of(splits.get(index++)).toInt());
+            record.put("start", IPv4Address.of(splits.get(index++)).toLong());
+            record.put("end", IPv4Address.of(splits.get(index++)).toLong());
             record.put("country", splits.get(index++));
             record.put("province", splits.get(index++));
             record.put("city", splits.get(index++));
@@ -65,7 +67,9 @@ public class Ipv4IndexWriterTest {
             values.add(record);
 
             Document document = new Document();
-            document.add(new IntRange("range", new int[] {(int)record.get("start")}, new int[] {(int)record.get("end")}));
+            document.add(new NumericDocValuesField("start", (Long)record.get("start")));
+            document.add(new NumericDocValuesField("end", (Long)record.get("end")));
+            //document.add(new IntRange("range", new int[] {(int)record.get("start")}, new int[] {(int)record.get("end")}));
             document.add(new Field("country", record.get("country").toString(), keywordType));
             document.add(new Field("province", record.get("province").toString(), keywordType));
             document.add(new Field("city", record.get("city").toString(), keywordType));
@@ -109,7 +113,7 @@ public class Ipv4IndexWriterTest {
     @Test
     public void testMerge() throws IOException {
         IndexWriter indexWriter = buildIndexWriter();
-        indexWriter.forceMerge(1);
+        indexWriter.forceMerge(2);
         indexWriter.close();
     }
 
@@ -120,6 +124,16 @@ public class Ipv4IndexWriterTest {
         indexWriter.flush();
         // 相当于es的flush
         indexWriter.commit();
+    }
+
+    @Test
+    public void deleteDocument() throws IOException {
+        IndexWriter indexWriter = buildIndexWriter();
+        long l = indexWriter.deleteDocuments(new Term("city", "上海市"));
+        System.out.println(l);
+        indexWriter.flush();
+        // close时会触发一次merge
+        indexWriter.close();
     }
 
 }

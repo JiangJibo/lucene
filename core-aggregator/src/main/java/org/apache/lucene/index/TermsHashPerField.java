@@ -193,7 +193,7 @@ abstract class TermsHashPerField implements Comparable<TermsHashPerField> {
         // byteHash存储term的字节长度和字节数据, length(1,2字节) + body
         int termID = bytesHash.add(termAtt.getBytesRef());
         // 打印数据
-        System.out.println("add term=" + termAtt.getBytesRef().utf8ToString() + " doc=" + docState.docID + " termID=" + termID);
+        //System.out.println("add term=" + termAtt.getBytesRef().utf8ToString() + " doc=" + docState.docID + " termID=" + termID);
         // New posting, 也就是此term是当前field里第一次写入
         if (termID >= 0) {
             bytesHash.byteStart(termID);

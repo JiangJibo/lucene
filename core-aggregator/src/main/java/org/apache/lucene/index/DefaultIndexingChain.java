@@ -852,7 +852,7 @@ final class DefaultIndexingChain extends DocConsumer {
                         throw new IllegalArgumentException("too many tokens for field \"" + field.name() + "\"");
                     }
 
-                    System.out.println("  term=" + invertState.termAttribute);
+                    //System.out.println("  term=" + invertState.termAttribute);
 
                     // If we hit an exception in here, we abort
                     // all buffered documents since the last
