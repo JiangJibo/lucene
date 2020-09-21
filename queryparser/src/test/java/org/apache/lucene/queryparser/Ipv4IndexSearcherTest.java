@@ -68,7 +68,7 @@ public class Ipv4IndexSearcherTest {
         sort = new Sort(new SortField("start", Type.LONG));
 
         Query query = new TermQuery(new Term("city", new BytesRef("杭州市")));
-        ScoreDoc[] hits = isearcher.search(query, 4, Sort.INDEXORDER).scoreDocs;
+        ScoreDoc[] hits = isearcher.search(query, 4, Sort.INDEXORDER).scoreDocs ;
         for (int i = 0; i < hits.length; i++) {
             Document hitDoc = isearcher.doc(hits[i].doc);
             System.out.println(hitDoc.get("start") + ":\t" + hitDoc.get("address"));
