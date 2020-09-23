@@ -49,7 +49,7 @@ public class Ipv4IndexWriterTest {
         FieldType numberType = numberFieldType();
 
         while ((line = reader.readLine()) != null) {
-            if (total++ % 2 != 0) {
+            if (total++ % 3 != 0) {
                 continue;
             }
             int index = 0;
