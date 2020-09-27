@@ -122,6 +122,7 @@ public class TermQuery extends Query {
         }
 
         /**
+         * 获取指定Field的指定value 对应的 统计信息，比如所有docID以及对应的freq，position
          * Returns a {@link TermsEnum} positioned at this weights Term or null if
          * the term does not exist in the given context
          */

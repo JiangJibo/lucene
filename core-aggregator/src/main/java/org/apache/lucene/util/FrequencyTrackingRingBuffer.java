@@ -21,7 +21,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.lucene.search.Query;
+
 /**
+ * 一个回环buffer, 记录最近使用的Integer, 主要是{@link Query#hashCode()}
  * A ring buffer that tracks the frequency of the integers that it contains.
  * This is typically useful to track the hash codes of popular recently-used
  * items.

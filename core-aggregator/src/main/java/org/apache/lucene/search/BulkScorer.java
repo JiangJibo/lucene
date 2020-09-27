@@ -19,6 +19,7 @@ package org.apache.lucene.search;
 
 import java.io.IOException;
 
+import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.util.Bits;
 
 /** This class is used to score a range of documents at
@@ -30,7 +31,7 @@ import org.apache.lucene.util.Bits;
 
 public abstract class BulkScorer {
 
-  /** Scores and collects all matching documents.
+  /** Scores and collects all matching documents. 批量对所有Score里的doc执行collect方法
    * @param collector The collector to which all matching documents are passed.
    * @param acceptDocs {@link Bits} that represents the allowed documents to match, or
    *                   {@code null} if they are all allowed to match.
@@ -41,6 +42,7 @@ public abstract class BulkScorer {
   }
 
   /**
+   *
    * Collects matching documents in a range and return an estimation of the
    * next matching document which is on or after {@code max}.
    * <p>The return value must be:</p><ul>
@@ -77,7 +79,8 @@ public abstract class BulkScorer {
    * @param  collector The collector to which all matching documents are passed.
    * @param acceptDocs {@link Bits} that represents the allowed documents to match, or
    *                   {@code null} if they are all allowed to match.
-   * @param  min Score starting at, including, this document 
+   *                   {@link LeafReader#getLiveDocs()}
+   * @param  min Score starting at, including, this document
    * @param  max Score up to, but not including, this doc
    * @return an under-estimation of the next matching doc after max
    */

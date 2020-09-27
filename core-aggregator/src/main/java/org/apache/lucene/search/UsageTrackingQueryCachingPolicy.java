@@ -21,8 +21,7 @@ import java.io.IOException;
 import org.apache.lucene.util.FrequencyTrackingRingBuffer;
 
 /**
- * A {@link QueryCachingPolicy} that tracks usage statistics of recently-used
- * filters in order to decide on which filters are worth caching.
+ * A {@link QueryCachingPolicy} that tracks usage statistics of recently-used filters in order to decide on which filters are worth caching.
  *
  * @lucene.experimental
  */
@@ -43,6 +42,12 @@ public class UsageTrackingQueryCachingPolicy implements QueryCachingPolicy {
         return false;
     }
 
+    /**
+     * 如果是耗费比较大的查询请求
+     *
+     * @param query
+     * @return
+     */
     static boolean isCostly(Query query) {
         // This does not measure the cost of iterating over the filter (for this we
         // already have the DocIdSetIterator#cost API) but the cost to build the
@@ -99,12 +104,9 @@ public class UsageTrackingQueryCachingPolicy implements QueryCachingPolicy {
     private final FrequencyTrackingRingBuffer recentlyUsedFilters;
 
     /**
-     * Expert: Create a new instance with a configurable history size. Beware of
-     * passing too large values for the size of the history, either
-     * {@link #minFrequencyToCache} returns low values and this means some filters
-     * that are rarely used will be cached, which would hurt performance. Or
-     * {@link #minFrequencyToCache} returns high values that are function of the
-     * size of the history but then filters will be slow to make it to the cache.
+     * Expert: Create a new instance with a configurable history size. Beware of passing too large values for the size of the history, either {@link
+     * #minFrequencyToCache} returns low values and this means some filters that are rarely used will be cached, which would hurt performance. Or {@link
+     * #minFrequencyToCache} returns high values that are function of the size of the history but then filters will be slow to make it to the cache.
      *
      * @param historySize the number of recently used filters to track
      */
@@ -113,21 +115,19 @@ public class UsageTrackingQueryCachingPolicy implements QueryCachingPolicy {
     }
 
     /**
-     * Create a new instance with an history size of 256. This should be a good
-     * default for most cases.
+     * Create a new instance with an history size of 256. This should be a good default for most cases.
      */
     public UsageTrackingQueryCachingPolicy() {
         this(256);
     }
 
     /**
-     * For a given filter, return how many times it should appear in the history
-     * before being cached. The default implementation returns 2 for filters that
-     * need to evaluate against the entire index to build a {@link DocIdSetIterator},
-     * like {@link MultiTermQuery}, point-based queries or {@link TermInSetQuery},
-     * and 5 for other filters.
+     * For a given filter, return how many times it should appear in the history before being cached. The default implementation returns 2 for filters that need
+     * to evaluate against the entire index to build a {@link DocIdSetIterator}, like {@link MultiTermQuery}, point-based queries or {@link TermInSetQuery}, and
+     * 5 for other filters.
      */
     protected int minFrequencyToCache(Query query) {
+        // 如果是耗费比较大的查询请求
         if (isCostly(query)) {
             return 2;
         } else {
@@ -164,6 +164,7 @@ public class UsageTrackingQueryCachingPolicy implements QueryCachingPolicy {
         // large queries; this may cause rare false positives, but at worse
         // this just means we cache a query that was not in fact used enough:
         synchronized (this) {
+            // 添加最近使用的Filter
             recentlyUsedFilters.add(hashCode);
         }
     }
@@ -186,6 +187,7 @@ public class UsageTrackingQueryCachingPolicy implements QueryCachingPolicy {
         if (shouldNeverCache(query)) {
             return false;
         }
+        // 之前使用此query的次数
         final int frequency = frequency(query);
         // 2次或者4次
         final int minFrequency = minFrequencyToCache(query);

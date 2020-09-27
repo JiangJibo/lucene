@@ -28,16 +28,13 @@ import org.apache.lucene.util.Bits;
 /**
  * Expert: Calculate query weights and build query scorers.
  * <p>
- * The purpose of {@link Weight} is to ensure searching does not modify a
- * {@link Query}, so that a {@link Query} instance can be reused. <br>
- * {@link IndexSearcher} dependent state of the query should reside in the
- * {@link Weight}. <br>
- * {@link org.apache.lucene.index.LeafReader} dependent state should reside in the {@link Scorer}.
+ * The purpose of {@link Weight} is to ensure searching does not modify a {@link Query}, so that a {@link Query} instance can be reused. <br> {@link
+ * IndexSearcher} dependent state of the query should reside in the {@link Weight}. <br> {@link org.apache.lucene.index.LeafReader} dependent state should
+ * reside in the {@link Scorer}.
  * <p>
- * Since {@link Weight} creates {@link Scorer} instances for a given
- * {@link org.apache.lucene.index.LeafReaderContext} ({@link #scorer(org.apache.lucene.index.LeafReaderContext)})
- * callers must maintain the relationship between the searcher's top-level
- * {@link IndexReaderContext} and the context used to create a {@link Scorer}.
+ * Since {@link Weight} creates {@link Scorer} instances for a given {@link org.apache.lucene.index.LeafReaderContext} ({@link
+ * #scorer(org.apache.lucene.index.LeafReaderContext)}) callers must maintain the relationship between the searcher's top-level {@link IndexReaderContext} and
+ * the context used to create a {@link Scorer}.
  * <p>
  * A <code>Weight</code> is used in the following way:
  * <ol>
@@ -63,10 +60,8 @@ public abstract class Weight implements SegmentCacheable {
     }
 
     /**
-     * Expert: adds all terms occurring in this query to the terms set. If the
-     * {@link Weight} was created with {@code needsScores == true} then this
-     * method will only extract terms which are used for scoring, otherwise it
-     * will extract all terms which are used for matching.
+     * Expert: adds all terms occurring in this query to the terms set. If the {@link Weight} was created with {@code needsScores == true} then this method will
+     * only extract terms which are used for scoring, otherwise it will extract all terms which are used for matching.
      */
     public abstract void extractTerms(Set<Term> terms);
 
@@ -88,8 +83,7 @@ public abstract class Weight implements SegmentCacheable {
     }
 
     /**
-     * Returns a {@link Scorer} which can iterate in order over all matching
-     * documents and assign them a score.
+     * Returns a {@link Scorer} which can iterate in order over all matching documents and assign them a score.
      * <p>
      * <b>NOTE:</b> null can be returned if no documents will be scored by this
      * query.
@@ -104,10 +98,8 @@ public abstract class Weight implements SegmentCacheable {
     public abstract Scorer scorer(LeafReaderContext context) throws IOException;
 
     /**
-     * Optional method.
-     * Get a {@link ScorerSupplier}, which allows to know the cost of the {@link Scorer}
-     * before building it. The default implementation calls {@link #scorer} and
-     * builds a {@link ScorerSupplier} wrapper around it.
+     * Optional method. Get a {@link ScorerSupplier}, which allows to know the cost of the {@link Scorer} before building it. The default implementation calls
+     * {@link #scorer} and builds a {@link ScorerSupplier} wrapper around it.
      *
      * @see #scorer
      */
@@ -130,16 +122,12 @@ public abstract class Weight implements SegmentCacheable {
     }
 
     /**
-     * Optional method, to return a {@link BulkScorer} to
-     * score the query and send hits to a {@link Collector}.
-     * Only queries that have a different top-level approach
-     * need to override this; the default implementation
-     * pulls a normal {@link Scorer} and iterates and
-     * collects the resulting hits which are not marked as deleted.
+     * Optional method, to return a {@link BulkScorer} to score the query and send hits to a {@link Collector}. Only queries that have a different top-level
+     * approach need to override this; the default implementation pulls a normal {@link Scorer} and iterates and collects the resulting hits which are not
+     * marked as deleted.
      *
      * @param context the {@link org.apache.lucene.index.LeafReaderContext} for which to return the {@link Scorer}.
-     * @return a {@link BulkScorer} which scores documents and
-     * passes them to a collector.
+     * @return a {@link BulkScorer} which scores documents and passes them to a collector.
      * @throws IOException if there is a low-level I/O error
      */
     public BulkScorer bulkScorer(LeafReaderContext context) throws IOException {
@@ -161,6 +149,7 @@ public abstract class Weight implements SegmentCacheable {
      * @lucene.internal
      */
     protected static class DefaultBulkScorer extends BulkScorer {
+
         private final Scorer scorer;
         private final DocIdSetIterator iterator;
         private final TwoPhaseIterator twoPhase;
@@ -184,8 +173,9 @@ public abstract class Weight implements SegmentCacheable {
 
         @Override
         public int score(LeafCollector collector, Bits acceptDocs, int min, int max) throws IOException {
+            // 设置当前doc的评分对象
             collector.setScorer(scorer);
-            // 检索所有结果
+            // 检索所有结果, scorer.docID() == -1 表示为所有iterator里的doc算分(执行collect方法), iterator里的doc是被提前过滤的,比如 TermScorer
             if (scorer.docID() == -1 && min == 0 && max == DocIdSetIterator.NO_MORE_DOCS) {
                 scoreAll(collector, iterator, twoPhase, acceptDocs);
                 return DocIdSetIterator.NO_MORE_DOCS;
@@ -198,18 +188,17 @@ public abstract class Weight implements SegmentCacheable {
                         doc = twoPhase.approximation().advance(min);
                     }
                 }
+                // 对DocIdSetIterator 里的 docID 从 min~max之间的docID 算分,或者叫执行collect方法
                 return scoreRange(collector, iterator, twoPhase, acceptDocs, doc, max);
             }
         }
 
         /**
-         * Specialized method to bulk-score a range of hits; we
-         * separate this from {@link #scoreAll} to help out
-         * hotspot.
-         * See <a href="https://issues.apache.org/jira/browse/LUCENE-5487">LUCENE-5487</a>
+         * Specialized method to bulk-score a range of hits; we separate this from {@link #scoreAll} to help out hotspot. See <a
+         * href="https://issues.apache.org/jira/browse/LUCENE-5487">LUCENE-5487</a>
          */
         static int scoreRange(LeafCollector collector, DocIdSetIterator iterator, TwoPhaseIterator twoPhase,
-            Bits acceptDocs, int currentDoc, int end) throws IOException {
+                              Bits acceptDocs, int currentDoc, int end) throws IOException {
 
             if (twoPhase == null) {
                 while (currentDoc < end) {
@@ -234,13 +223,19 @@ public abstract class Weight implements SegmentCacheable {
         }
 
         /**
-         * Specialized method to bulk-score all hits; we
-         * separate this from {@link #scoreRange} to help out
-         * hotspot.
-         * See <a href="https://issues.apache.org/jira/browse/LUCENE-5487">LUCENE-5487</a>
+         * Specialized method to bulk-score all hits; we separate this from {@link #scoreRange} to help out hotspot. See <a
+         * href="https://issues.apache.org/jira/browse/LUCENE-5487">LUCENE-5487</a>
+         * <p>
+         * 对所有doc执行collect方法;
+         *
+         * @param collector
+         * @param iterator
+         * @param twoPhase
+         * @param acceptDocs {@link LeafReader#getLiveDocs()} 所有存活DocId
+         * @throws IOException
          */
         static void scoreAll(LeafCollector collector, DocIdSetIterator iterator, TwoPhaseIterator twoPhase,
-            Bits acceptDocs) throws IOException {
+                             Bits acceptDocs) throws IOException {
             if (twoPhase == null) {
                 for (int doc = iterator.nextDoc(); doc != DocIdSetIterator.NO_MORE_DOCS; doc = iterator.nextDoc()) {
                     if (acceptDocs == null || acceptDocs.get(doc)) {

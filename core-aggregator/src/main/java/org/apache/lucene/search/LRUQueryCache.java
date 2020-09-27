@@ -45,19 +45,15 @@ import org.apache.lucene.util.RamUsageEstimator;
 import org.apache.lucene.util.RoaringDocIdSet;
 
 /**
- * A {@link QueryCache} that evicts queries using a LRU (least-recently-used)
- * eviction policy in order to remain under a given maximum size and number of
- * bytes used.
- *
+ * A {@link QueryCache} that evicts queries using a LRU (least-recently-used) eviction policy in order to remain under a given maximum size and number of bytes
+ * used.
+ * <p>
  * This class is thread-safe.
- *
- * Note that query eviction runs in linear time with the total number of
- * segments that have cache entries so this cache works best with
- * {@link QueryCachingPolicy caching policies} that only cache on "large"
- * segments, and it is advised to not share this cache across too many indices.
- *
- * A default query cache and policy instance is used in IndexSearcher. If you want to replace those defaults
- * it is typically done like this:
+ * <p>
+ * Note that query eviction runs in linear time with the total number of segments that have cache entries so this cache works best with {@link
+ * QueryCachingPolicy caching policies} that only cache on "large" segments, and it is advised to not share this cache across too many indices.
+ * <p>
+ * A default query cache and policy instance is used in IndexSearcher. If you want to replace those defaults it is typically done like this:
  * <pre class="prettyprint">
  *   final int maxNumberOfCachedQueries = 256;
  *   final long maxRamBytesUsed = 50 * 1024L * 1024L; // 50MB
@@ -68,18 +64,12 @@ import org.apache.lucene.util.RoaringDocIdSet;
  *   indexSearcher.setQueryCache(queryCache);
  *   indexSearcher.setQueryCachingPolicy(defaultCachingPolicy);
  * </pre>
- *
- * This cache exposes some global statistics ({@link #getHitCount() hit count},
- * {@link #getMissCount() miss count}, {@link #getCacheSize() number of cache
- * entries}, {@link #getCacheCount() total number of DocIdSets that have ever
- * been cached}, {@link #getEvictionCount() number of evicted entries}). In
- * case you would like to have more fine-grained statistics, such as per-index
- * or per-query-class statistics, it is possible to override various callbacks:
- * {@link #onHit}, {@link #onMiss},
- * {@link #onQueryCache}, {@link #onQueryEviction},
- * {@link #onDocIdSetCache}, {@link #onDocIdSetEviction} and {@link #onClear}.
- * It is better to not perform heavy computations in these methods though since
- * they are called synchronously and under a lock.
+ * <p>
+ * This cache exposes some global statistics ({@link #getHitCount() hit count}, {@link #getMissCount() miss count}, {@link #getCacheSize() number of cache
+ * entries}, {@link #getCacheCount() total number of DocIdSets that have ever been cached}, {@link #getEvictionCount() number of evicted entries}). In case you
+ * would like to have more fine-grained statistics, such as per-index or per-query-class statistics, it is possible to override various callbacks: {@link
+ * #onHit}, {@link #onMiss}, {@link #onQueryCache}, {@link #onQueryEviction}, {@link #onDocIdSetCache}, {@link #onDocIdSetEviction} and {@link #onClear}. It is
+ * better to not perform heavy computations in these methods though since they are called synchronously and under a lock.
  *
  * @lucene.experimental
  * @see QueryCachingPolicy
@@ -120,12 +110,11 @@ public class LRUQueryCache implements QueryCache, Accountable {
     private volatile long cacheSize;
 
     /**
-     * Expert: Create a new instance that will cache at most <code>maxSize</code>
-     * queries with at most <code>maxRamBytesUsed</code> bytes of memory, only on
+     * Expert: Create a new instance that will cache at most <code>maxSize</code> queries with at most <code>maxRamBytesUsed</code> bytes of memory, only on
      * leaves that satisfy {@code leavesToCache};
      */
     public LRUQueryCache(int maxSize, long maxRamBytesUsed,
-        Predicate<LeafReaderContext> leavesToCache) {
+                         Predicate<LeafReaderContext> leavesToCache) {
         this.maxSize = maxSize;
         this.maxRamBytesUsed = maxRamBytesUsed;
         this.leavesToCache = leavesToCache;
@@ -137,15 +126,11 @@ public class LRUQueryCache implements QueryCache, Accountable {
     }
 
     /**
-     * Create a new instance that will cache at most <code>maxSize</code> queries
-     * with at most <code>maxRamBytesUsed</code> bytes of memory. Queries will
-     * only be cached on leaves that have more than 10k documents and have more
-     * than 3% of the total number of documents in the index.
-     * This should guarantee that all leaves from the upper
-     * {@link TieredMergePolicy tier} will be cached while ensuring that at most
+     * Create a new instance that will cache at most <code>maxSize</code> queries with at most <code>maxRamBytesUsed</code> bytes of memory. Queries will only
+     * be cached on leaves that have more than 10k documents and have more than 3% of the total number of documents in the index. This should guarantee that all
+     * leaves from the upper {@link TieredMergePolicy tier} will be cached while ensuring that at most
      * <tt>33</tt> leaves can make it to the cache (very likely less than 10 in
-     * practice), which is useful for this implementation since some operations
-     * perform in linear time with the number of cached leaves.
+     * practice), which is useful for this implementation since some operations perform in linear time with the number of cached leaves.
      */
     public LRUQueryCache(int maxSize, long maxRamBytesUsed) {
         this(maxSize, maxRamBytesUsed, new MinSegmentSizePredicate(10000, .03f));
@@ -153,6 +138,7 @@ public class LRUQueryCache implements QueryCache, Accountable {
 
     // pkg-private for testing
     static class MinSegmentSizePredicate implements Predicate<LeafReaderContext> {
+
         private final int minSize;
         private final float minSizeRatio;
 
@@ -174,9 +160,8 @@ public class LRUQueryCache implements QueryCache, Accountable {
     }
 
     /**
-     * Expert: callback when there is a cache hit on a given query.
-     * Implementing this method is typically useful in order to compute more
-     * fine-grained statistics about the query cache.
+     * Expert: callback when there is a cache hit on a given query. Implementing this method is typically useful in order to compute more fine-grained
+     * statistics about the query cache.
      *
      * @lucene.experimental
      * @see #onMiss
@@ -199,9 +184,8 @@ public class LRUQueryCache implements QueryCache, Accountable {
     }
 
     /**
-     * Expert: callback when a query is added to this cache.
-     * Implementing this method is typically useful in order to compute more
-     * fine-grained statistics about the query cache.
+     * Expert: callback when a query is added to this cache. Implementing this method is typically useful in order to compute more fine-grained statistics about
+     * the query cache.
      *
      * @lucene.experimental
      * @see #onQueryEviction
@@ -223,9 +207,8 @@ public class LRUQueryCache implements QueryCache, Accountable {
     }
 
     /**
-     * Expert: callback when a {@link DocIdSet} is added to this cache.
-     * Implementing this method is typically useful in order to compute more
-     * fine-grained statistics about the query cache.
+     * Expert: callback when a {@link DocIdSet} is added to this cache. Implementing this method is typically useful in order to compute more fine-grained
+     * statistics about the query cache.
      *
      * @lucene.experimental
      * @see #onDocIdSetEviction
@@ -238,8 +221,7 @@ public class LRUQueryCache implements QueryCache, Accountable {
     }
 
     /**
-     * Expert: callback when one or more {@link DocIdSet}s are removed from this
-     * cache.
+     * Expert: callback when one or more {@link DocIdSet}s are removed from this cache.
      *
      * @lucene.experimental
      * @see #onDocIdSetCache
@@ -279,6 +261,7 @@ public class LRUQueryCache implements QueryCache, Accountable {
         assert key instanceof BoostQuery == false;
         assert key instanceof ConstantScoreQuery == false;
         final IndexReader.CacheKey readerKey = cacheHelper.getKey();
+        // 对应Segment的缓存
         final LeafCache leafCache = cache.get(readerKey);
         if (leafCache == null) {
             onMiss(readerKey, key);
@@ -404,7 +387,7 @@ public class LRUQueryCache implements QueryCache, Accountable {
         try {
             cache.clear();
             // Note that this also clears the uniqueQueries map since mostRecentlyUsedQueries is the uniqueQueries
-          // .keySet view:
+            // .keySet view:
             mostRecentlyUsedQueries.clear();
             onClear();
         } finally {
@@ -491,8 +474,7 @@ public class LRUQueryCache implements QueryCache, Accountable {
     }
 
     /**
-     * Default cache implementation: uses {@link RoaringDocIdSet} for sets that
-     * have a density &lt; 1% and a {@link BitDocIdSet} over a {@link FixedBitSet}
+     * Default cache implementation: uses {@link RoaringDocIdSet} for sets that have a density &lt; 1% and a {@link BitDocIdSet} over a {@link FixedBitSet}
      * otherwise.
      */
     protected DocIdSet cacheImpl(BulkScorer scorer, int maxDoc) throws IOException {
@@ -540,12 +522,9 @@ public class LRUQueryCache implements QueryCache, Accountable {
     }
 
     /**
-     * Return the total number of times that a {@link Query} has been looked up
-     * in this {@link QueryCache}. Note that this number is incremented once per
-     * segment so running a cached query only once will increment this counter
-     * by the number of segments that are wrapped by the searcher.
-     * Note that by definition, {@link #getTotalCount()} is the sum of
-     * {@link #getHitCount()} and {@link #getMissCount()}.
+     * Return the total number of times that a {@link Query} has been looked up in this {@link QueryCache}. Note that this number is incremented once per
+     * segment so running a cached query only once will increment this counter by the number of segments that are wrapped by the searcher. Note that by
+     * definition, {@link #getTotalCount()} is the sum of {@link #getHitCount()} and {@link #getMissCount()}.
      *
      * @see #getHitCount()
      * @see #getMissCount()
@@ -555,9 +534,8 @@ public class LRUQueryCache implements QueryCache, Accountable {
     }
 
     /**
-     * Over the {@link #getTotalCount() total} number of times that a query has
-     * been looked up, return how many times a cached {@link DocIdSet} has been
-     * found and returned.
+     * Over the {@link #getTotalCount() total} number of times that a query has been looked up, return how many times a cached {@link DocIdSet} has been found
+     * and returned.
      *
      * @see #getTotalCount()
      * @see #getMissCount()
@@ -567,8 +545,7 @@ public class LRUQueryCache implements QueryCache, Accountable {
     }
 
     /**
-     * Over the {@link #getTotalCount() total} number of times that a query has
-     * been looked up, return how many times this query was not contained in the
+     * Over the {@link #getTotalCount() total} number of times that a query has been looked up, return how many times this query was not contained in the
      * cache.
      *
      * @see #getTotalCount()
@@ -579,8 +556,7 @@ public class LRUQueryCache implements QueryCache, Accountable {
     }
 
     /**
-     * Return the total number of {@link DocIdSet}s which are currently stored
-     * in the cache.
+     * Return the total number of {@link DocIdSet}s which are currently stored in the cache.
      *
      * @see #getCacheCount()
      * @see #getEvictionCount()
@@ -590,11 +566,9 @@ public class LRUQueryCache implements QueryCache, Accountable {
     }
 
     /**
-     * Return the total number of cache entries that have been generated and put
-     * in the cache. It is highly desirable to have a {@link #getHitCount() hit
-     * count} that is much higher than the {@link #getCacheCount() cache count}
-     * as the opposite would indicate that the query cache makes efforts in order
-     * to cache queries but then they do not get reused.
+     * Return the total number of cache entries that have been generated and put in the cache. It is highly desirable to have a {@link #getHitCount() hit count}
+     * that is much higher than the {@link #getCacheCount() cache count} as the opposite would indicate that the query cache makes efforts in order to cache
+     * queries but then they do not get reused.
      *
      * @see #getCacheSize()
      * @see #getEvictionCount()
@@ -604,12 +578,9 @@ public class LRUQueryCache implements QueryCache, Accountable {
     }
 
     /**
-     * Return the number of cache entries that have been removed from the cache
-     * either in order to stay under the maximum configured size/ram usage, or
-     * because a segment has been closed. High numbers of evictions might mean
-     * that queries are not reused or that the {@link QueryCachingPolicy
-     * caching policy} caches too aggressively on NRT segments which get merged
-     * early.
+     * Return the number of cache entries that have been removed from the cache either in order to stay under the maximum configured size/ram usage, or because
+     * a segment has been closed. High numbers of evictions might mean that queries are not reused or that the {@link QueryCachingPolicy caching policy} caches
+     * too aggressively on NRT segments which get merged early.
      *
      * @see #getCacheCount()
      * @see #getCacheSize()
@@ -704,6 +675,13 @@ public class LRUQueryCache implements QueryCache, Accountable {
             return worstCaseRamUsage * 5 < totalRamAvailable;
         }
 
+        /**
+         * 缓存DocIdSet
+         *
+         * @param context
+         * @return
+         * @throws IOException
+         */
         private DocIdSet cache(LeafReaderContext context) throws IOException {
             final BulkScorer scorer = in.bulkScorer(context);
             if (scorer == null) {
@@ -724,6 +702,7 @@ public class LRUQueryCache implements QueryCache, Accountable {
         @Override
         public ScorerSupplier scorerSupplier(LeafReaderContext context) throws IOException {
             if (used.compareAndSet(false, true)) {
+                // 如果当前Query可以被缓存, policy里添加query的hashCode
                 policy.onUse(getQuery());
             }
 
@@ -751,6 +730,7 @@ public class LRUQueryCache implements QueryCache, Accountable {
 
             DocIdSet docIdSet;
             try {
+                // 获取缓存的DocIdSet
                 docIdSet = get(in.getQuery(), context, cacheHelper);
             } finally {
                 lock.unlock();

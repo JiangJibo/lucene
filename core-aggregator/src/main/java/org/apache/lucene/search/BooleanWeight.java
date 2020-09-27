@@ -43,6 +43,9 @@ final class BooleanWeight extends Weight {
     final Similarity similarity;
     final BooleanQuery query;
 
+    /**
+     * 所有{@link BooleanClause} 的权重集合
+     */
     final ArrayList<Weight> weights;
     final boolean needsScores;
 
@@ -151,6 +154,7 @@ final class BooleanWeight extends Weight {
     BulkScorer optionalBulkScorer(LeafReaderContext context) throws IOException {
         List<BulkScorer> optional = new ArrayList<BulkScorer>();
         Iterator<BooleanClause> cIter = query.iterator();
+        // BooleanClause 和 Weight 的顺序是一一对应上的
         for (Weight w : weights) {
             BooleanClause c = cIter.next();
             if (c.getOccur() != Occur.SHOULD) {
@@ -340,14 +344,14 @@ final class BooleanWeight extends Weight {
         }
 
         // scorer simplifications:
-
+        // 如果每个should都需要 match
         if (scorers.get(Occur.SHOULD).size() == minShouldMatch) {
             // any optional clauses are in fact required
             scorers.get(Occur.MUST).addAll(scorers.get(Occur.SHOULD));
             scorers.get(Occur.SHOULD).clear();
             minShouldMatch = 0;
         }
-
+        // 如果没有一个Clause
         if (scorers.get(Occur.FILTER).isEmpty() && scorers.get(Occur.MUST).isEmpty() && scorers.get(Occur.SHOULD).isEmpty()) {
             // no required and optional clauses.
             return null;

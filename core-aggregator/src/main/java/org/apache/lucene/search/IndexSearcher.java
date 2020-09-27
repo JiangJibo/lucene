@@ -118,14 +118,29 @@ public class IndexSearcher {
     };
 
     private static QueryCache DEFAULT_QUERY_CACHE;
+
+    /**
+     * 默认缓存策略, 通过{@link Query#hashCode()} 作为key 缓存{@link DocIdSet}
+     */
     private static QueryCachingPolicy DEFAULT_CACHING_POLICY = new UsageTrackingQueryCachingPolicy();
 
     static {
         final int maxCachedQueries = 1000;
         // min of 32MB or 5% of the heap size
         final long maxRamBytesUsed = Math.min(1L << 25, Runtime.getRuntime().maxMemory() / 20);
+        // 默认Filter的Cache大小为1000, 最小32MB, 最大为JVM内存的5%
         DEFAULT_QUERY_CACHE = new LRUQueryCache(maxCachedQueries, maxRamBytesUsed);
     }
+
+    /**
+     * 查询缓存
+     */
+    private QueryCache queryCache = DEFAULT_QUERY_CACHE;
+
+    /**
+     * 查询缓存策略
+     */
+    private QueryCachingPolicy queryCachingPolicy = DEFAULT_CACHING_POLICY;
 
     final IndexReader reader; // package private for testing!
 
@@ -144,8 +159,7 @@ public class IndexSearcher {
     // the default Similarity
     private static final Similarity defaultSimilarity = new BM25Similarity();
 
-    private QueryCache queryCache = DEFAULT_QUERY_CACHE;
-    private QueryCachingPolicy queryCachingPolicy = DEFAULT_CACHING_POLICY;
+
 
     /**
      * Expert: returns a default Similarity instance.
@@ -701,7 +715,7 @@ public class IndexSearcher {
             BulkScorer scorer = weight.bulkScorer(ctx);
             if (scorer != null) {
                 try {
-                    //
+                    // 在算评分时需要关注是否是存货的Doc的情况
                     scorer.score(leafCollector, ctx.reader().getLiveDocs());
                 } catch (CollectionTerminatedException e) {
                     // collection was terminated prematurely
@@ -787,6 +801,7 @@ public class IndexSearcher {
         final QueryCache queryCache = this.queryCache;
         Weight weight = query.createWeight(this, needsScores, boost);
         if (needsScores == false && queryCache != null) {
+            // 查询缓存包装Weight, 返回CachingWrapperWeight
             weight = queryCache.doCache(weight, queryCachingPolicy);
         }
         return weight;

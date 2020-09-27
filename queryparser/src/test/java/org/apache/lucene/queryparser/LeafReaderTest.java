@@ -11,7 +11,9 @@ import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
+import org.checkerframework.dataflow.qual.TerminatesExecution;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -41,17 +43,27 @@ public class LeafReaderTest {
         LeafReader leafReader = isearcher.getIndexReader().leaves().get(0).reader();
         TermsEnum termsEnum = leafReader.terms("city").iterator();
         boolean exact = termsEnum.seekExact(new BytesRef("杭州市"));
-        PostingsEnum postingsEnum = null;
         if (!exact) {
             return;
         }
         System.out.println("docFreq:" + termsEnum.docFreq());
         System.out.println("totalTermFreq:" + termsEnum.totalTermFreq());
+
+        PostingsEnum postingsEnum = null;
         PostingsEnum postings = termsEnum.postings(postingsEnum, PostingsEnum.ALL);
+
         while (postings.nextDoc() != DocIdSetIterator.NO_MORE_DOCS) {
             System.out.println(String.format("docID:%d, freq:%d, position:%d",
                 postings.docID(), postings.freq(), postings.nextPosition()));
         }
+    }
+
+    @Test
+    public void tesetLiveDocs(){
+        LeafReader leafReader = isearcher.getIndexReader().leaves().get(0).reader();
+        Bits liveDocs = leafReader.getLiveDocs();
+        boolean b = liveDocs.get(1000);
+        System.out.println(b);
     }
 
 }

@@ -108,7 +108,9 @@ public class TermInSetQuery extends Query implements Accountable {
 
     @Override
     public Query rewrite(IndexReader reader) throws IOException {
+        // 如果term的values的个数小于16个
         final int threshold = Math.min(BOOLEAN_REWRITE_TERM_COUNT_THRESHOLD, BooleanQuery.getMaxClauseCount());
+        // 则用Boolean Query 的 Should 来包装
         if (termData.size() <= threshold) {
             BooleanQuery.Builder bq = new BooleanQuery.Builder();
             TermIterator iterator = termData.iterator();
