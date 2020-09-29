@@ -864,18 +864,18 @@ public class IndexSearcher {
         final long sumDocFreq;
 
         assert field != null;
-
+        // 收集所有Segment里此Field的统计信息, 返回MultiTerms实例
         Terms terms = MultiFields.getTerms(reader, field);
         if (terms == null) {
             docCount = 0;
             sumTotalTermFreq = 0;
             sumDocFreq = 0;
         } else {
-            //field里的总doc数
+            //field里的总doc数, MultiTerms#getDocCount
             docCount = terms.getDocCount();
-            // field里所有term出现的次数的总数，一个term可能出现多次
+            // 每个term在每个doc里的freq累加, 没有记录每个doc有多少个term, 所以用term的doc个数累计来统计term出现总次数
             sumTotalTermFreq = terms.getSumTotalTermFreq();
-            // field 每个doc里的有效term的总数,一个term出现多少算一个
+            // 每个term出现的doc的个数累加
             sumDocFreq = terms.getSumDocFreq();
         }
 

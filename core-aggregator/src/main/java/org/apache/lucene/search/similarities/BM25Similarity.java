@@ -76,6 +76,7 @@ public class BM25Similarity extends Similarity {
 
     /**
      * Implemented as <code>log(1 + (docCount - docFreq + 0.5)/(docFreq + 0.5))</code>.
+     * 对e取导数
      */
     protected float idf(long docFreq, long docCount) {
         return (float)Math.log(1 + (docCount - docFreq + 0.5D) / (docFreq + 0.5D));
@@ -196,8 +197,11 @@ public class BM25Similarity extends Similarity {
      * and an explanation for the term.
      */
     public Explanation idfExplain(CollectionStatistics collectionStats, TermStatistics termStats) {
+        // 当前term出现的doc个数
         final long df = termStats.docFreq();
+        // 当前Field里所有doc个数
         final long docCount = collectionStats.docCount() == -1 ? collectionStats.maxDoc() : collectionStats.docCount();
+        // 逆向文档频率
         final float idf = idf(df, docCount);
         return Explanation.match(idf, "idf, computed as log(1 + (docCount - docFreq + 0.5) / (docFreq + 0.5)) from:",
             Explanation.match(df, "docFreq"),
@@ -242,7 +246,7 @@ public class BM25Similarity extends Similarity {
         // 计算IDF
         Explanation idf = termStats.length == 1 ? idfExplain(collectionStats, termStats[0]) : idfExplain(
             collectionStats, termStats);
-        // 此Field的平均term长度, term是唯一的
+        // 此Field的所有doc的平均term个数
         float avgdl = avgFieldLength(collectionStats);
 
         float[] oldCache = new float[256];

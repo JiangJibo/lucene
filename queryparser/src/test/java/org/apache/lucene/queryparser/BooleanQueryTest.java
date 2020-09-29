@@ -10,6 +10,7 @@ import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.DocValuesTermsQuery;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
@@ -56,6 +57,35 @@ public class BooleanQueryTest {
             System.out.println(scoreDoc.doc);
         }
 
+    }
+
+    @Test
+    public void testFilterQuery() throws IOException {
+        TermQuery province = new TermQuery(new Term("province", "浙江省"));
+        TermQuery city = new TermQuery(new Term("city", "杭州市"));
+        TermQuery region = new TermQuery(new Term("region", "西湖区"));
+        BooleanQuery booleanQuery = new BooleanQuery.Builder()
+            .add(city, Occur.FILTER)
+            .add(province, Occur.MUST)
+            .add(region, Occur.MUST)
+            .build();
+
+        TopDocs topDocs = trackSearchProgress(booleanQuery);
+
+        topDocs = trackSearchProgress(booleanQuery);
+    }
+
+    private TopDocs trackSearchProgress(Query query) throws IOException {
+        long t1 = System.currentTimeMillis();
+        TopDocs topDocs = indexSearcher.search(query, 10);
+        System.out.println("耗费了: " + (System.currentTimeMillis() - t1));
+        System.out.println("总共命中: " + topDocs.totalHits);
+
+        for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
+            System.out.println("docID:" + scoreDoc.doc + ", score:" + scoreDoc.score + ", address:" + indexSearcher.doc(scoreDoc.doc).get("address"));
+        }
+
+        return topDocs;
     }
 
 }

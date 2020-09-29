@@ -65,12 +65,12 @@ public class UsageTrackingQueryCachingPolicy implements QueryCachingPolicy {
      * @return
      */
     private static boolean shouldNeverCache(Query query) {
-        // 如果是通过Term查询的,不缓存
+        // 如果是通过Term查询的,不缓存, 因为查询效率很高,没有缓存的必要
         if (query instanceof TermQuery) {
             // We do not bother caching term queries since they are already plenty fast.
             return true;
         }
-        // 如果查询所有DOC
+        // 如果查询所有DOC, 结果集比Bit Set 遍历更快
         if (query instanceof MatchAllDocsQuery) {
             // MatchAllDocsQuery has an iterator that is faster than what a bit set could do.
             return true;

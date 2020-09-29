@@ -69,7 +69,8 @@ public abstract class TopScoreDocCollector extends TopDocsCollector<ScoreDoc> {
                     assert !Float.isNaN(score);
 
                     totalHits++;
-                    // 如果分数相等, lucene倾向于docID小的, 也就是时间早的数据
+                    // 如果分数相等,且已经采集到了足够的doc, lucene倾向于docID小的, 也就是时间早的数据
+                    // 默认情况下 pqTop.score = Integer.MIN_VALUE, 当采集到足够的doc个数时,会更新其为doc里最小的分值
                     if (score <= pqTop.score) {
                         // Since docs are returned in-order (i.e., increasing doc Id), a document
                         // with equal score to pqTop.score cannot compete since HitQueue favors
@@ -78,6 +79,8 @@ public abstract class TopScoreDocCollector extends TopDocsCollector<ScoreDoc> {
                     }
                     pqTop.doc = doc + docBase;
                     pqTop.score = score;
+                    // 更新top,queue里按score由小到大排序,
+                    // 只有当采集到足够的doc时,才会触发,将score最小的放queue最上面
                     pqTop = pq.updateTop();
                 }
 
