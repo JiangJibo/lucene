@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedSet;
 
 import com.github.maltalex.ineter.base.IPv4Address;
 import com.google.common.base.Joiner;
@@ -26,6 +27,9 @@ import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.SortField;
+import org.apache.lucene.search.SortField.Type;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.junit.Test;
@@ -88,7 +92,14 @@ public class Ipv4IndexWriterTest {
         // To store an index on disk, use this instead:
         Directory directory = FSDirectory.open(Paths.get("D:\\lucene-data"));
         IndexWriterConfig config = new IndexWriterConfig(new WhitespaceAnalyzer());
-        return new IndexWriter(directory, config);
+
+        // 设置document在segment里的顺序, 默认是docId, 如果设置成某个Field或者多个Field, 则在检索时能够实现EarlyTerminate
+        Sort sort = new Sort(new SortField("timestamp", Type.LONG, true), new SortField("age", Type.INT, false));
+        config.setIndexSort(sort);
+
+        IndexWriter indexWriter = new IndexWriter(directory, config);
+
+        return indexWriter;
     }
 
     private FieldType keywordFieldType() {

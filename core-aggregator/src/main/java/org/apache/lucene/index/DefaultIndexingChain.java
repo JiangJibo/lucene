@@ -81,10 +81,12 @@ final class DefaultIndexingChain extends DocConsumer {
         this.bytesUsed = docWriter.bytesUsed;
 
         final TermsHash termVectorsWriter;
+        // 是否在IndexWriterConfig里指定Doc的写入Order, 默认是null, 也就是使用IndexOrder
         if (docWriter.getSegmentInfo().getIndexSort() == null) {
             storedFieldsConsumer = new StoredFieldsConsumer(docWriter);
             termVectorsWriter = new TermVectorsConsumer(docWriter);
         } else {
+            // 有指定indexSort, 在生成Segment时用指定Field排序
             storedFieldsConsumer = new SortingStoredFieldsConsumer(docWriter);
             termVectorsWriter = new SortingTermVectorsConsumer(docWriter);
         }

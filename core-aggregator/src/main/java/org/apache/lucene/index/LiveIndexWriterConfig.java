@@ -128,6 +128,7 @@ public class LiveIndexWriterConfig {
 
     /**
      * The sort order to use to write merged segments.
+     * @see DefaultIndexingChain#DefaultIndexingChain(org.apache.lucene.index.DocumentsWriterPerThread)
      */
     protected Sort indexSort = null;
 

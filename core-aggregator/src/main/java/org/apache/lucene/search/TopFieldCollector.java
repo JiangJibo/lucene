@@ -67,6 +67,13 @@ public abstract class TopFieldCollector extends TopDocsCollector<Entry> {
         }
     }
 
+    /**
+     * 检索的Sort和Index的Sort是一致的
+     *
+     * @param searchSort
+     * @param indexSort
+     * @return
+     */
     static boolean canEarlyTerminate(Sort searchSort, Sort indexSort) {
         final SortField[] fields1 = searchSort.getSort();
         final SortField[] fields2 = indexSort.getSort();
@@ -121,10 +128,13 @@ public abstract class TopFieldCollector extends TopDocsCollector<Entry> {
             final LeafFieldComparator[] comparators = queue.getComparators(context);
             final int[] reverseMul = queue.getReverseMul();
             final Sort indexSort = context.reader().getMetaData().getSort();
-            final boolean canEarlyTerminate = trackTotalHits == false &&
-                trackMaxScore == false &&
-                indexSort != null &&
-                canEarlyTerminate(sort, indexSort);
+
+            final boolean canEarlyTerminate = trackTotalHits == false
+                && trackMaxScore == false
+                && indexSort != null                            // Document默认在写入时是没有顺序的，默认是Index顺序, 如果在在写入时是有Sort的, 则indexSort != null
+                && canEarlyTerminate(sort, indexSort);          // 检索的Sort和Index的Sort是一致的, 则可以提前结束
+
+
             final int initialTotalHits = totalHits;
 
             return new MultiComparatorLeafCollector(comparators, reverseMul, mayNeedScoresTwice) {
@@ -144,16 +154,20 @@ public abstract class TopFieldCollector extends TopDocsCollector<Entry> {
                     }
 
                     ++totalHits;
+                    // 队列满了, 假设取Top10, 也就是已经取到了10条合适的数据
                     if (queueFull) {
+                        // 对比当前doc和已经收集到的queue里的bottom的doc的Sort, Score太小或者Field值顺序不合适
                         if (reverseMul * comparator.compareBottom(doc) <= 0) {
                             // since docs are visited in doc Id order, if compare is 0, it means
                             // this document is largest than anything else in the queue, and
                             // therefore not competitive.
+                            // 如果可以提前结, 收集的数据量足够了，那么提早结束能极大提高性能, es的Index Sorting 使用了这个特性
                             if (canEarlyTerminate) {
                                 // scale totalHits linearly based on the number of docs
                                 // and terminate collection
                                 totalHits += estimateRemainingHits(totalHits - initialTotalHits, doc, context.reader().maxDoc());
                                 earlyTerminated = true;
+                                // 抛出异常形式结束整个循环
                                 throw new CollectionTerminatedException();
                             } else {
                                 // just move to the next doc

@@ -8,6 +8,7 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.DocValuesTermsQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
@@ -70,9 +71,11 @@ public class BooleanQueryTest {
             .add(region, Occur.MUST)
             .build();
 
-        TopDocs topDocs = trackSearchProgress(booleanQuery);
+        ConstantScoreQuery query = new ConstantScoreQuery(booleanQuery);
 
-        topDocs = trackSearchProgress(booleanQuery);
+        TopDocs topDocs = trackSearchProgress(query);
+
+        topDocs = trackSearchProgress(query);
     }
 
     private TopDocs trackSearchProgress(Query query) throws IOException {
