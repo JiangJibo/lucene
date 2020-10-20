@@ -303,8 +303,10 @@ public class TopDocs {
 
         final PriorityQueue<ShardRef> queue;
         if (sort == null) {
+            // 按分数排序
             queue = new ScoreMergeSortQueue(shardHits);
         } else {
+            // 按Field排序
             queue = new MergeSortQueue(sort, shardHits);
         }
 

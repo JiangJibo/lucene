@@ -675,7 +675,7 @@ public final class CompressingStoredFieldsReader extends StoredFieldsReader {
             final FieldInfo fieldInfo = fieldInfos.fieldInfo(fieldNumber);
             // infoAndBits & 0111 得到类型
             final int bits = (int)(infoAndBits & TYPE_MASK);
-            // bits一定要在0 1 2 3 4 5 之间, lucene数据只有这5个类型
+            // bits一定要在0 1 2 3 4 5 之间, lucene数据只有这6个类型
             assert bits <= NUMERIC_DOUBLE : "bits=" + Integer.toHexString(bits);
             // 查询时是否需要做个Field , DocumentStoredFieldVisitor
             switch (visitor.needsField(fieldInfo)) {
