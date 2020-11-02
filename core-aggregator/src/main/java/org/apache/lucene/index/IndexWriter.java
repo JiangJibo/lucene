@@ -5224,7 +5224,7 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     }
 
     /**
-     * 当前segmengInfos版本没有发生变化, 也就是没有新的Segment生成
+     * 当前segmengInfos版本没有发生变化, 比如是否有新的segment生成, 内存总是否有新写入的没有写入到segment的document等等
      *
      * @param infos
      * @return
@@ -5232,8 +5232,8 @@ public class IndexWriter implements Closeable, TwoPhaseCommit, Accountable {
     synchronized boolean nrtIsCurrent(SegmentInfos infos) {
         ensureOpen();
         boolean isCurrent = infos.getVersion() == segmentInfos.getVersion()
-            && docWriter.anyChanges() == false
-            && bufferedUpdatesStream.any() == false
+            && docWriter.anyChanges() == false      // 内存中是否有document, 也就是不再segment里的 document
+            && bufferedUpdatesStream.any() == false // 内存中是否有更新的数据
             && readerPool.anyChanges() == false;
         if (infoStream.isEnabled("IW")) {
             if (isCurrent == false) {
