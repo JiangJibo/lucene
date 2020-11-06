@@ -139,7 +139,13 @@ public class LRUQueryCache implements QueryCache, Accountable {
     // pkg-private for testing
     static class MinSegmentSizePredicate implements Predicate<LeafReaderContext> {
 
+        /**
+         * 10000
+         */
         private final int minSize;
+        /**
+         * 0.03f
+         */
         private final float minSizeRatio;
 
         MinSegmentSizePredicate(int minSize, float minSizeRatio) {
@@ -149,12 +155,16 @@ public class LRUQueryCache implements QueryCache, Accountable {
 
         @Override
         public boolean test(LeafReaderContext context) {
+            // 当前segment的最大doc序号, 也就是当前segment有多少个document
             final int maxDoc = context.reader().maxDoc();
+            // 如果当前segment的doc个数 < 10000, 那么久不缓存了
             if (maxDoc < minSize) {
                 return false;
             }
             final IndexReaderContext topLevelContext = ReaderUtil.getTopLevelContext(context);
+            // 当前segment的doc个数 / 所有segment的doc个数
             final float sizeRatio = (float)context.reader().maxDoc() / topLevelContext.reader().maxDoc();
+            // 当前segment的doc个数全部doc个数的比例超过 3%
             return sizeRatio >= minSizeRatio;
         }
     }
@@ -695,7 +705,9 @@ public class LRUQueryCache implements QueryCache, Accountable {
          * Check whether this segment is eligible for caching, regardless of the query.
          */
         private boolean shouldCache(LeafReaderContext context) throws IOException {
+            // 缓存数据不能超过RAM上限
             return cacheEntryHasReasonableWorstCaseSize(ReaderUtil.getTopLevelContext(context).reader().maxDoc())
+                // 缓存的segment的doc个数超过10000, 且占全部doc个数比例超过3%
                 && leavesToCache.test(context);
         }
 

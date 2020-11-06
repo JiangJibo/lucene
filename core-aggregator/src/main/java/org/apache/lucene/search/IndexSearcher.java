@@ -800,6 +800,7 @@ public class IndexSearcher {
     public Weight createWeight(Query query, boolean needsScores, float boost) throws IOException {
         final QueryCache queryCache = this.queryCache;
         Weight weight = query.createWeight(this, needsScores, boost);
+        // 只有不需要score的检索且缓存有配置 才能缓存结果
         if (needsScores == false && queryCache != null) {
             // 查询缓存包装Weight, 返回CachingWrapperWeight
             weight = queryCache.doCache(weight, queryCachingPolicy);

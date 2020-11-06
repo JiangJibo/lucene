@@ -7,10 +7,17 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedSet;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import com.github.maltalex.ineter.base.IPv4Address;
 import com.google.common.base.Joiner;
@@ -19,7 +26,6 @@ import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.IntRange;
 import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DocValuesType;
@@ -32,6 +38,7 @@ import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.SortField.Type;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -40,22 +47,60 @@ import org.junit.Test;
  */
 public class Ipv4IndexWriterTest {
 
+    private IndexWriter indexWriter;
+
+    private FieldType keywordType;
+
+    private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(5);
+
+    Lock lock = new ReentrantLock();
+    private Condition condition = lock.newCondition();
+
+    @Before
+    public void init() throws IOException {
+        indexWriter = buildIndexWriter();
+        keywordType = keywordFieldType();
+    }
+
     @Test
-    public void writeIpv4Data() throws IOException {
+    public void indexDocumentConcurrent() throws InterruptedException {
+        Callable runnable = () -> {
+            writeIpv4Data();
+            return null;
+        };
+        //executorService.schedule(runnable, 1, TimeUnit.MICROSECONDS);
+        //executorService.schedule(runnable, 1, TimeUnit.MICROSECONDS);
+        //executorService.schedule(runnable, 1, TimeUnit.MICROSECONDS);
+        //executorService.schedule(runnable, 1, TimeUnit.MICROSECONDS);
+
+        executorService.submit(runnable);
+        executorService.submit(runnable);
+
+        while (true) {
+            Thread.sleep(1);
+            lock.lock();
+            try {
+                indexWriter.flush();
+                condition.signalAll();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                lock.unlock();
+            }
+        }
+
+    }
+
+    public void writeIpv4Data() throws IOException, InterruptedException {
         File txt = new File("C:\\Users\\wb-jjb318191\\Desktop\\ipv4.txt");
         BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(txt)));
         String line;
         int total = 0;
         List<Map<String, Object>> values = new ArrayList<>(1000);
 
-        IndexWriter indexWriter = buildIndexWriter();
-        FieldType keywordType = keywordFieldType();
         FieldType numberType = numberFieldType();
 
         while ((line = reader.readLine()) != null) {
-            if (total++ % 3 != 0) {
-                continue;
-            }
             int index = 0;
             List<String> splits = Splitter.on(",").splitToList(line);
             Map<String, Object> record = new HashMap<>();
@@ -81,10 +126,13 @@ public class Ipv4IndexWriterTest {
             document.add(new Field("isp", record.get("isp").toString(), keywordType));
             document.add(new Field("address", record.get("address").toString(), TextField.TYPE_STORED));
             indexWriter.addDocument(document);
+            total++;
+            if (total % 1000 == 0) {
+                lock.lock();
+                condition.await();
+                lock.unlock();
+            }
         }
-        indexWriter.flush();
-        // close时会触发一次merge
-        indexWriter.close();
     }
 
     private IndexWriter buildIndexWriter() throws IOException {
