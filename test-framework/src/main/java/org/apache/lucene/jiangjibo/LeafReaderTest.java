@@ -1,4 +1,4 @@
-package org.apache.lucene.queryparser;
+package org.apache.lucene.jiangjibo;
 
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -13,7 +13,6 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
-import org.checkerframework.dataflow.qual.TerminatesExecution;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -28,7 +27,7 @@ public class LeafReaderTest {
 
     @Before
     public void init() throws IOException {
-        Directory directory = FSDirectory.open(Paths.get("D:\\lucene-data"));
+        Directory directory = FSDirectory.open(Paths.get("D:\\lucene-data-1"));
         DirectoryReader ireader = DirectoryReader.open(directory);
         isearcher = new IndexSearcher(ireader);
     }
