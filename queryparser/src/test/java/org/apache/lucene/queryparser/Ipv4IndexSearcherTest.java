@@ -45,6 +45,7 @@ public class Ipv4IndexSearcherTest {
         isearcher = new IndexSearcher(ireader);
     }
 
+
     @After
     public void after() throws IOException {
         isearcher.getIndexReader().close();
