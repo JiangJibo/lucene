@@ -1,4 +1,4 @@
-package org.apache.lucene.queryparser;
+package org.apache.lucene.jiangjibo;
 
 import java.io.IOException;
 import java.nio.file.Paths;
