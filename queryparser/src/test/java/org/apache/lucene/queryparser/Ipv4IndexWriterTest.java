@@ -91,6 +91,7 @@ public class Ipv4IndexWriterTest {
 
     }
 
+    @Test
     public void writeIpv4Data() throws IOException, InterruptedException {
         File txt = new File("C:\\Users\\wb-jjb318191\\Desktop\\ipv4.txt");
         BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(txt)));
@@ -127,10 +128,11 @@ public class Ipv4IndexWriterTest {
             document.add(new Field("address", record.get("address").toString(), TextField.TYPE_STORED));
             indexWriter.addDocument(document);
             total++;
-            if (total % 1000 == 0) {
-                lock.lock();
-                condition.await();
-                lock.unlock();
+            if (total % 10000 == 0) {
+                indexWriter.flush();
+            }
+            if(total == 50000){
+                indexWriter.close();
             }
         }
     }
