@@ -16,7 +16,6 @@
         <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-core-aggregator</artifactId>
-            <version>1.0-SNAPSHOT</version>
         </dependency>
 
         <dependency>
