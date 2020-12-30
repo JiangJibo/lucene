@@ -26,12 +26,6 @@
     <dependencies>
 
         <dependency>
-            <!-- lucene-test-framework dependency must be declared before lucene-core -->
-            <groupId>org.apache.lucene</groupId>
-            <artifactId>lucene-test-framework</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.apache.uima</groupId>
             <artifactId>Tagger</artifactId>
         </dependency>

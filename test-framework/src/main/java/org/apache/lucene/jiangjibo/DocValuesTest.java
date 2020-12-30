@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Arrays;
 
-import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.document.SortedNumericDocValuesField;
@@ -41,7 +40,7 @@ public class DocValuesTest {
         // Store the index in memory:
         // To store an index on disk, use this instead:
         Directory directory = FSDirectory.open(Paths.get("D:\\lucene-docValues-data"));
-        IndexWriterConfig config = new IndexWriterConfig(new WhitespaceAnalyzer());
+        IndexWriterConfig config = new IndexWriterConfig();
         indexWriter = new IndexWriter(directory, config);
 
         DirectoryReader ireader = DirectoryReader.open(directory);

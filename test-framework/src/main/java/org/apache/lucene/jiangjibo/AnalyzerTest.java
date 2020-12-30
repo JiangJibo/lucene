@@ -6,10 +6,6 @@ import java.io.StringReader;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.Tokenizer;
-import org.apache.lucene.analysis.core.LowerCaseFilter;
-import org.apache.lucene.analysis.core.LowerCaseTokenizer;
-import org.apache.lucene.analysis.core.WhitespaceTokenizer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
@@ -25,7 +21,7 @@ public class AnalyzerTest {
     @Test
     public void testAnalyzerInvoking() throws IOException {
 
-        Tokenizer tokenizer = new WhitespaceTokenizer();
+        /*Tokenizer tokenizer = new WhitespaceTokenizer();
 
         Analyzer analyzer = new Analyzer() {
             @Override
@@ -55,7 +51,7 @@ public class AnalyzerTest {
 
             System.out.printf("[%s : %d ->  %d : %s]", charTermAttr.toString(), offsetAttr.startOffset(), offsetAttr.endOffset(),
                 typeAttr.type());
-        }
+        }*/
     }
 
 }

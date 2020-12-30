@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
@@ -22,7 +23,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import com.github.maltalex.ineter.base.IPv4Address;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
-import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
@@ -131,17 +131,19 @@ public class Ipv4IndexWriterTest {
             if (total % 10000 == 0) {
                 indexWriter.flush();
             }
-            if(total == 50000){
+            if (total == 50000) {
                 indexWriter.close();
+                break;
             }
         }
     }
+
 
     private IndexWriter buildIndexWriter() throws IOException {
         // Store the index in memory:
         // To store an index on disk, use this instead:
         Directory directory = FSDirectory.open(Paths.get("D:\\lucene-data"));
-        IndexWriterConfig config = new IndexWriterConfig(new WhitespaceAnalyzer());
+        IndexWriterConfig config = new IndexWriterConfig();
 
         // 设置document在segment里的顺序, 默认是docId, 如果设置成某个Field或者多个Field, 则在检索时能够实现EarlyTerminate
         Sort sort = new Sort(new SortField("timestamp", Type.LONG, true), new SortField("age", Type.INT, false));

@@ -11,14 +11,9 @@ import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.queryparser.classic.ParseException;
-import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.store.RAMDirectory;
 import org.junit.Test;
 
 /**
@@ -28,7 +23,7 @@ import org.junit.Test;
 public class IndexSearcherTest {
 
     @Test
-    public void testUseLucene() throws IOException, ParseException {
+    public void testUseLucene() throws IOException {
         Analyzer analyzer = new StandardAnalyzer();
 
         // Store the index in memory:
@@ -58,7 +53,7 @@ public class IndexSearcherTest {
         DirectoryReader ireader = DirectoryReader.open(directory);
         IndexSearcher isearcher = new IndexSearcher(ireader);
         // Parse a simple query that searches for "text":
-        QueryParser parser = new QueryParser("fieldname", analyzer);
+        /*QueryParser parser = new QueryParser("fieldname", analyzer);
         Query query = parser.parse("text");
         ScoreDoc[] hits = isearcher.search(query, 4).scoreDocs;
         // Iterate through the results:
@@ -67,7 +62,7 @@ public class IndexSearcherTest {
             System.out.println(hitDoc.get("fieldname"));
         }
         ireader.close();
-        directory.close();
+        directory.close();*/
     }
 
 }
