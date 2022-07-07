@@ -1246,7 +1246,7 @@
             <dependency>
                 <groupId>org.eclipse.jetty</groupId>
                 <artifactId>jetty-http</artifactId>
-                <version>9.4.8.v20171121</version>
+                <version>9.4.48.v20220622</version>
                 <exclusions>
                     <exclusion>
                         <groupId>org.eclipse.jetty</groupId>
